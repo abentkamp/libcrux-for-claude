@@ -46,6 +46,8 @@ jobs:
       - name: Create and update sync branch
         run: |
           git checkout -B merge-public-libcrux upstream/main
+          git restore --source origin/main --staged --worktree -- .github
+          git commit -m "Restore libcrux-evit CI workflows"
           git push --set-upstream origin merge-public-libcrux --force
 
       - name: Create pull request
