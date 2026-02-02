@@ -31,7 +31,7 @@ jobs:
       - name: Checkout libcrux-evit
         uses: actions/checkout@v4
         with:
-          token: ${{ secrets.PR_PAT }}
+          token: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Set up Git
         run: |
@@ -53,5 +53,5 @@ jobs:
       - name: Create pull request
         run: gh pr create -B main -H merge-public-libcrux --title 'Synchronize with upstream libcrux' --body 'Created by Github action'
         env:
-          GH_TOKEN: ${{ secrets.PR_PAT }}
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           GH_REPO: cryspen/libcrux-evit
