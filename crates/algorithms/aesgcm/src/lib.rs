@@ -306,7 +306,6 @@ pub(crate) fn encrypt<S: State>(
     tag: &mut [u8],
 ) -> Result<(), EncryptError> {
     debug_assert!(nonce.len() == NONCE_LEN);
-    debug_assert!(tag.len() == TAG_LEN);
 
     // plaintext length check
     if plaintext.len() / crate::aes::AES_BLOCK_LEN >= (u32::MAX - 1) as usize {
@@ -335,7 +334,6 @@ pub(crate) fn decrypt<S: State>(
     plaintext: &mut [u8],
 ) -> Result<(), DecryptError> {
     debug_assert!(nonce.len() == NONCE_LEN);
-    debug_assert!(tag.len() == TAG_LEN);
 
     // plaintext length check
     if plaintext.len() / crate::aes::AES_BLOCK_LEN >= (u32::MAX - 1) as usize {
@@ -354,10 +352,9 @@ pub(crate) fn decrypt<S: State>(
 
 /// Macro to instantiate the different variants, both 128/256 and platforms.
 macro_rules! pub_crate_mod {
-    ($variant_comment:literal, $mod_name:ident, $state:ty) => {
+    ($mod_name:ident, $key_len:literal, $state:ty, $variant_comment:literal) => {
         #[doc = $variant_comment]
         pub mod $mod_name {
-            use crate::$mod_name::KEY_LEN;
             use crate::{platform, DecryptError, EncryptError};
 
             type State = $state;
@@ -372,7 +369,7 @@ macro_rules! pub_crate_mod {
                 ciphertext: &mut [u8],
                 tag: &mut [u8],
             ) -> Result<(), EncryptError> {
-                debug_assert!(key.len() == KEY_LEN);
+                debug_assert!(key.len() == $key_len);
                 crate::encrypt::<State>(key, nonce, aad, plaintext, ciphertext, tag)
             }
 
@@ -386,7 +383,7 @@ macro_rules! pub_crate_mod {
                 tag: &[u8],
                 plaintext: &mut [u8],
             ) -> Result<(), DecryptError> {
-                debug_assert!(key.len() == KEY_LEN);
+                debug_assert!(key.len() == $key_len);
                 crate::decrypt::<State>(key, nonce, aad, ciphertext, tag, plaintext)
             }
         }
@@ -394,23 +391,54 @@ macro_rules! pub_crate_mod {
 }
 
 pub mod aes_ccm_128_external {
-    pub use crate::portable::aes_ccm_128::*;
+    pub use crate::portable::aes_ccm_128::{decrypt, encrypt};
+    pub use crate::portable::aes_ccm_128_8::{
+        decrypt as decrypt_short_tag, encrypt as encrypt_short_tag,
+    };
+}
+
+pub mod aes_ccm_256_external {
+    pub use crate::portable::aes_ccm_256::{decrypt, encrypt};
+    pub use crate::portable::aes_ccm_256_8::{
+        decrypt as decrypt_short_tag, encrypt as encrypt_short_tag,
+    };
 }
 
 pub(crate) mod portable {
-    pub_crate_mod!(r"AES-GCM 128 ", aes_gcm_128, crate::aes_gcm_128::State<platform::portable::State, platform::portable::FieldElement>);
+    pub_crate_mod!(aes_gcm_128, 16, crate::aes_gcm_128::State<platform::portable::State, platform::portable::FieldElement>, r"AES-GCM 128 ");
+    pub_crate_mod!(aes_gcm_256, 32, crate::aes_gcm_256::State<platform::portable::State, platform::portable::FieldElement>, r"AES-GCM 256 ");
     pub_crate_mod!(
-        r"AES-CCM 128 ",
         aes_ccm_128,
-        crate::aes_ccm_128::AesCcm128State<platform::portable::State>
+        16,
+        crate::aes_ccm_128::AesCcm128State<platform::portable::State>,
+        r"AES-CCM 128 "
     );
-    pub_crate_mod!(r"AES-GCM 256 ", aes_gcm_256, crate::aes_gcm_256::State<platform::portable::State, platform::portable::FieldElement>);
+    pub_crate_mod!(
+        aes_ccm_128_8,
+        16,
+        crate::aes_ccm_128::AesCcm128_8_State<platform::portable::State>,
+        r"AES-CCM 128 (8-octet tag) "
+    );
+
+    pub_crate_mod!(
+        aes_ccm_256,
+        32,
+        crate::aes_ccm_128::AesCcm256State<platform::portable::State>,
+        r"AES-CCM 256 "
+    );
+
+    pub_crate_mod!(
+        aes_ccm_256_8,
+        32,
+        crate::aes_ccm_128::AesCcm256_8_State<platform::portable::State>,
+        r"AES-CCM 256 (8-octet tag) "
+    );
 }
 
 #[cfg(feature = "simd128")]
 pub(crate) mod neon {
-    pub_crate_mod!(r"AES-GCM 128 ", aes_gcm_128, crate::aes_gcm_128::State<platform::neon::State, platform::neon::FieldElement>);
-    pub_crate_mod!(r"AES-GCM 256 ", aes_gcm_256, crate::aes_gcm_256::State<platform::neon::State, platform::neon::FieldElement>);
+    // pub_crate_mod!(r"AES-GCM 128 ",  aes_gcm_128, crate::aes_gcm_128::State<platform::neon::State, platform::neon::FieldElement>, r"AES-GCM 128 ");
+    // pub_crate_mod!(r"AES-GCM 256 ",  aes_gcm_256, crate::aes_gcm_256::State<platform::neon::State, platform::neon::FieldElement>, r"AES-GCM 256 ");
 }
 
 #[cfg(feature = "simd256")]

@@ -3,11 +3,11 @@
 /// Macro to instantiate the AES state.
 /// This should really be replaced by using traits everywhere.
 macro_rules! aesccm {
-    ($state:ty, $ctr_context:ident) => {
+    ($state:ty, $ctr_context:ident, $key_len:literal) => {
         impl<T: AESState> super::State for $state {
             /// Initialize the state
             fn init(key: &[u8]) -> Self {
-                debug_assert!(key.len() == KEY_LEN);
+                debug_assert!(key.len() == $key_len);
 
                 let nonce = [0u8; NONCE_LEN];
                 let accumulator = [0u8; AES_BLOCK_LEN];
