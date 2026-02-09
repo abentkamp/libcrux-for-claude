@@ -1,9 +1,12 @@
-use wycheproof::{aead::Test, TestResult};
+use wycheproof::{
+    aead::{Test, TestName},
+    TestResult,
+};
 
 fn run<Cipher: libcrux_aesgcm::Aead>(test: &Test, cipher: Cipher) {
     let mut ciphertext = vec![0u8; test.pt.len()];
     let mut plaintext = vec![0u8; test.pt.len()];
-    let mut tag_bytes = [0u8; 16];
+    let mut tag_bytes = vec![0u8; cipher.tag_len()];
 
     let key = cipher.new_key(&test.key).unwrap();
     let nonce = cipher.new_nonce(&test.nonce).unwrap();
@@ -28,147 +31,8 @@ fn run<Cipher: libcrux_aesgcm::Aead>(test: &Test, cipher: Cipher) {
     }
 }
 
-fn ccm_run(test: &Test, key_size: usize, tag_size: usize) {
-    let mut ciphertext = vec![0u8; test.pt.len()];
-    let mut plaintext = vec![0u8; test.pt.len()];
-    let mut tag_bytes = vec![0u8; tag_size / 8];
-
-    println!("Key: {:?}", &test.key.as_ref());
-    println!("Nonce: {:?}", &test.nonce.as_ref());
-    println!("Plaintext: {:?}", &test.pt.as_ref());
-    println!("AAD: {:?}", &test.aad.as_ref());
-
-    match (key_size, tag_size) {
-        (128, 128) => libcrux_aesgcm::aes_ccm_128_external::encrypt(
-            &test.key,
-            &test.nonce,
-            &test.aad,
-            &test.pt,
-            &mut ciphertext,
-            &mut tag_bytes,
-        )
-        .unwrap(),
-        (256, 128) => libcrux_aesgcm::aes_ccm_256_external::encrypt(
-            &test.key,
-            &test.nonce,
-            &test.aad,
-            &test.pt,
-            &mut ciphertext,
-            &mut tag_bytes,
-        )
-        .unwrap(),
-        (128, 64) => libcrux_aesgcm::aes_ccm_128_external::encrypt_short_tag(
-            &test.key,
-            &test.nonce,
-            &test.aad,
-            &test.pt,
-            &mut ciphertext,
-            &mut tag_bytes,
-        )
-        .unwrap(),
-        (256, 64) => libcrux_aesgcm::aes_ccm_256_external::encrypt_short_tag(
-            &test.key,
-            &test.nonce,
-            &test.aad,
-            &test.pt,
-            &mut ciphertext,
-            &mut tag_bytes,
-        )
-        .unwrap(),
-        _ => panic!(),
-    }
-
-    if test.result == TestResult::Valid {
-        assert_eq!(tag_bytes.as_slice(), test.tag.as_slice());
-        assert_eq!(&ciphertext, test.ct.as_slice());
-
-        match (key_size, tag_size) {
-            (128, 128) => libcrux_aesgcm::aes_ccm_128_external::decrypt(
-                &test.key,
-                &test.nonce,
-                &test.aad,
-                &test.ct,
-                &test.tag,
-                &mut plaintext,
-            )
-            .unwrap(),
-
-            (256, 128) => libcrux_aesgcm::aes_ccm_256_external::decrypt(
-                &test.key,
-                &test.nonce,
-                &test.aad,
-                &test.ct,
-                &test.tag,
-                &mut plaintext,
-            )
-            .unwrap(),
-            (128, 64) => libcrux_aesgcm::aes_ccm_128_external::decrypt_short_tag(
-                &test.key,
-                &test.nonce,
-                &test.aad,
-                &test.ct,
-                &test.tag,
-                &mut plaintext,
-            )
-            .unwrap(),
-            (256, 64) => libcrux_aesgcm::aes_ccm_256_external::decrypt_short_tag(
-                &test.key,
-                &test.nonce,
-                &test.aad,
-                &test.ct,
-                &test.tag,
-                &mut plaintext,
-            )
-            .unwrap(),
-            _ => panic!(),
-        }
-
-        assert_eq!(&plaintext, test.pt.as_slice());
-        println!("Successful encryption");
-        println!("Ciphertext: {:?}\n", &ciphertext);
-    } else {
-        let dec_result = match (key_size, tag_size) {
-            (128, 128) => libcrux_aesgcm::aes_ccm_128_external::decrypt(
-                &test.key,
-                &test.nonce,
-                &test.aad,
-                &test.ct,
-                &test.tag,
-                &mut plaintext,
-            ),
-            (256, 128) => libcrux_aesgcm::aes_ccm_256_external::decrypt(
-                &test.key,
-                &test.nonce,
-                &test.aad,
-                &test.ct,
-                &test.tag,
-                &mut plaintext,
-            ),
-            (128, 64) => libcrux_aesgcm::aes_ccm_128_external::decrypt_short_tag(
-                &test.key,
-                &test.nonce,
-                &test.aad,
-                &test.ct,
-                &test.tag,
-                &mut plaintext,
-            ),
-            (256, 64) => libcrux_aesgcm::aes_ccm_256_external::decrypt_short_tag(
-                &test.key,
-                &test.nonce,
-                &test.aad,
-                &test.ct,
-                &test.tag,
-                &mut plaintext,
-            ),
-            _ => panic!(),
-        };
-        assert!(dec_result.is_err());
-        println!("Successfully rejected invalid ciphertext");
-    }
-}
-
-fn test_variant(cipher: impl libcrux_aesgcm::Aead) {
-    let test_set = wycheproof::aead::TestSet::load(wycheproof::aead::TestName::AesGcm).unwrap();
+fn test_variant(cipher: impl libcrux_aesgcm::Aead, test_name: TestName) {
+    let test_set = wycheproof::aead::TestSet::load(test_name).unwrap();
 
     // Ensure we ran some tests.
     let mut tested = false;
@@ -179,12 +43,17 @@ fn test_variant(cipher: impl libcrux_aesgcm::Aead) {
             test_group.key_size, test_group.tag_size, test_group.nonce_size,
         );
 
-        if test_group.nonce_size != 96 {
+        if test_group.nonce_size != cipher.nonce_len() * 8 {
             println!("  Skipping unsupported nonce size");
             continue;
         }
 
-        if test_group.key_size / 8 == cipher.key_len() {
+        if test_group.tag_size != cipher.tag_len() * 8 {
+            println!("  Skipping unsupported tag size");
+            continue;
+        }
+
+        if test_group.key_size == cipher.key_len() * 8 {
             for test in test_group.tests {
                 run(&test, cipher);
                 tested = true;
@@ -195,78 +64,214 @@ fn test_variant(cipher: impl libcrux_aesgcm::Aead) {
     assert!(tested, "No tests were run.")
 }
 
-#[test]
-fn ccm() {
-    let test_set = wycheproof::aead::TestSet::load(wycheproof::aead::TestName::AesCcm).unwrap();
-
-    // Ensure we ran some tests.
-    let mut tested = false;
-
-    for test_group in test_set.test_groups {
-        println!(
-            "* Group key size:{} tag size:{} nonce size:{}",
-            test_group.key_size, test_group.tag_size, test_group.nonce_size,
-        );
-
-        if test_group.nonce_size != 96 || !(test_group.tag_size == 128 || test_group.tag_size == 64)
-        {
-            println!("  Skipping unsupported nonce size");
-            continue;
-        }
-
-        if test_group.key_size / 8 == 16 || test_group.key_size / 8 == 32 {
-            for test in test_group.tests {
-                ccm_run(&test, test_group.key_size, test_group.tag_size);
-                tested = true;
-            }
-        }
-    }
-
-    assert!(tested, "No tests were run.")
-}
+// XXX: Probably could use a macro to make below more concise.
 
 #[test]
-fn aes128() {
+fn aesgcm128() {
     // Multiplexing
-    test_variant(libcrux_aesgcm::AesGcm128);
+    test_variant(
+        libcrux_aesgcm::AesGcm128,
+        wycheproof::aead::TestName::AesGcm,
+    );
 }
 
 #[test]
-fn aes128_portable() {
-    test_variant(libcrux_aesgcm::aes_gcm_128::portable::PortableAesGcm128);
+fn aesgcm128_portable() {
+    test_variant(
+        libcrux_aesgcm::aes_gcm_128::portable::PortableAesGcm128,
+        wycheproof::aead::TestName::AesGcm,
+    );
 }
 
 #[cfg(feature = "simd128")]
 #[test]
-fn aes128_neon() {
-    test_variant(libcrux_aesgcm::aes_gcm_128::neon::NeonAesGcm128);
+fn aesgcm128_neon() {
+    test_variant(
+        libcrux_aesgcm::aes_gcm_128::neon::NeonAesGcm128,
+        wycheproof::aead::TestName::AesGcm,
+    );
 }
 
 #[cfg(feature = "simd256")]
 #[test]
-fn aes128_x64() {
-    test_variant(libcrux_aesgcm::aes_gcm_128::x64::X64AesGcm128);
+fn aesgcm128_x64() {
+    test_variant(
+        libcrux_aesgcm::aes_gcm_128::x64::X64AesGcm128,
+        wycheproof::aead::TestName::AesGcm,
+    );
 }
 
 #[test]
-fn aes256() {
+fn aesgcm256() {
     // Multiplexing
-    test_variant(libcrux_aesgcm::AesGcm256);
+    test_variant(
+        libcrux_aesgcm::AesGcm256,
+        wycheproof::aead::TestName::AesGcm,
+    );
 }
 
 #[test]
-fn aes256_portable() {
-    test_variant(libcrux_aesgcm::aes_gcm_256::portable::PortableAesGcm256);
+fn aesgcm256_portable() {
+    test_variant(
+        libcrux_aesgcm::aes_gcm_256::portable::PortableAesGcm256,
+        wycheproof::aead::TestName::AesGcm,
+    );
 }
 
 #[cfg(feature = "simd128")]
 #[test]
-fn aes256_neon() {
-    test_variant(libcrux_aesgcm::aes_gcm_256::neon::NeonAesGcm256);
+fn aesgcm256_neon() {
+    test_variant(
+        libcrux_aesgcm::aes_gcm_256::neon::NeonAesGcm256,
+        wycheproof::aead::TestName::AesGcm,
+    );
 }
 
 #[cfg(feature = "simd256")]
 #[test]
-fn aes256_x64() {
-    test_variant(libcrux_aesgcm::aes_gcm_256::x64::X64AesGcm256);
+fn aesgcm256_x64() {
+    test_variant(
+        libcrux_aesgcm::aes_gcm_256::x64::X64AesGcm256,
+        wycheproof::aead::TestName::AesGcm,
+    );
+}
+
+#[test]
+fn aesccm128() {
+    // Multiplexing
+    test_variant(
+        libcrux_aesgcm::AesCcm128,
+        wycheproof::aead::TestName::AesCcm,
+    );
+}
+
+#[test]
+fn aesccm128_portable() {
+    test_variant(
+        libcrux_aesgcm::aes_ccm_128::portable::PortableAesCcm128,
+        wycheproof::aead::TestName::AesCcm,
+    );
+}
+
+#[cfg(feature = "simd128")]
+#[test]
+fn aesccm128_neon() {
+    test_variant(
+        libcrux_aesgcm::aes_ccm_128::neon::NeonAesCcm128,
+        wycheproof::aead::TestName::AesCcm,
+    );
+}
+
+#[cfg(feature = "simd256")]
+#[test]
+fn aesccm128_x64() {
+    test_variant(
+        libcrux_aesgcm::aes_ccm_128::x64::X64AesCcm128,
+        wycheproof::aead::TestName::AesCcm,
+    );
+}
+
+#[test]
+fn aesccm256() {
+    // Multiplexing
+    test_variant(
+        libcrux_aesgcm::AesCcm256,
+        wycheproof::aead::TestName::AesCcm,
+    );
+}
+
+#[test]
+fn aesccm256_portable() {
+    test_variant(
+        libcrux_aesgcm::aes_ccm_256::portable::PortableAesCcm256,
+        wycheproof::aead::TestName::AesCcm,
+    );
+}
+
+#[cfg(feature = "simd128")]
+#[test]
+fn aesccm256_neon() {
+    test_variant(
+        libcrux_aesgcm::aes_ccm_256::neon::NeonAesCcm256,
+        wycheproof::aead::TestName::AesCcm,
+    );
+}
+
+#[cfg(feature = "simd256")]
+#[test]
+fn aesccm256_x64() {
+    test_variant(
+        libcrux_aesgcm::aes_ccm_256::x64::X64AesCcm256,
+        wycheproof::aead::TestName::AesCcm,
+    );
+}
+
+#[test]
+fn aesccm128_short_tag() {
+    // Multiplexing
+    test_variant(
+        libcrux_aesgcm::aes_ccm_128::short_tag::AesCcm128ShortTag,
+        wycheproof::aead::TestName::AesCcm,
+    );
+}
+
+#[test]
+fn aesccm128_portable_short_tag() {
+    test_variant(
+        libcrux_aesgcm::aes_ccm_128::short_tag::portable::PortableAesCcm128ShortTag,
+        wycheproof::aead::TestName::AesCcm,
+    );
+}
+
+#[cfg(feature = "simd128")]
+#[test]
+fn aesccm128_neon_short_tag() {
+    test_variant(
+        libcrux_aesgcm::aes_ccm_128::short_tag::neon::NeonAesCcm128ShortTag,
+        wycheproof::aead::TestName::AesCcm,
+    );
+}
+
+#[cfg(feature = "simd256")]
+#[test]
+fn aesccm128_x64_short_tag() {
+    test_variant(
+        libcrux_aesgcm::aes_ccm_128::short_tag::x64::X64AesCcm128ShortTag,
+        wycheproof::aead::TestName::AesCcm,
+    );
+}
+
+#[test]
+fn aesccm256_short_tag() {
+    // Multiplexing
+    test_variant(
+        libcrux_aesgcm::aes_ccm_256::short_tag::AesCcm256ShortTag,
+        wycheproof::aead::TestName::AesCcm,
+    );
+}
+
+#[test]
+fn aesccm256_portable_short_tag() {
+    test_variant(
+        libcrux_aesgcm::aes_ccm_256::short_tag::portable::PortableAesCcm256ShortTag,
+        wycheproof::aead::TestName::AesCcm,
+    );
+}
+
+#[cfg(feature = "simd128")]
+#[test]
+fn aesccm256_neon_short_tag() {
+    test_variant(
+        libcrux_aesgcm::aes_ccm_256::short_tag::neon::NeonAesCcm256ShortTag,
+        wycheproof::aead::TestName::AesCcm,
+    );
+}
+
+#[cfg(feature = "simd256")]
+#[test]
+fn aesccm256_x64_short_tag() {
+    test_variant(
+        libcrux_aesgcm::aes_ccm_256::short_tag::x64::X64AesCcm256ShortTag,
+        wycheproof::aead::TestName::AesCcm,
+    );
 }

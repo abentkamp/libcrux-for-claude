@@ -7,6 +7,9 @@ pub(crate) type ExtendedKey<T, const NUM_KEYS: usize> = [T; NUM_KEYS];
 /// AES block size
 pub(crate) const AES_BLOCK_LEN: usize = 16;
 
+pub(crate) const AES_128_KEY_LEN: usize = 16;
+pub(crate) const AES_256_KEY_LEN: usize = 32;
+
 /// The AES block cipher function.
 #[inline]
 pub(crate) fn block_cipher<T: AESState, const NUM_KEYS: usize>(

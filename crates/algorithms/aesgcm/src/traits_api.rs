@@ -1,7 +1,10 @@
 use crate::{
-    aes_gcm_128, aes_gcm_256,
-    implementations::{AesGcm128, AesGcm256, PortableAesGcm128, PortableAesGcm256},
-    NONCE_LEN, TAG_LEN,
+    implementations::{
+        AesCcm128, AesCcm128ShortTag, AesCcm256, AesCcm256ShortTag, AesGcm128, AesGcm256,
+        PortableAesCcm128, PortableAesCcm128ShortTag, PortableAesCcm256, PortableAesCcm256ShortTag,
+        PortableAesGcm128, PortableAesGcm256,
+    },
+    NONCE_LEN,
 };
 
 use libcrux_traits::aead::{arrayref, consts, slice, typed_owned};
@@ -25,13 +28,15 @@ macro_rules! impl_traits_public_api {
 
 /// Macro to implement the different structs and multiplexing.
 macro_rules! api {
-    ($mod_name:ident, $variant:ident, $multiplexing:ty, $portable:ident, $neon:ident, $x64:ident) => {
+    ($mod_name:ident, $variant:ident, $multiplexing:ty, $portable:ident, $neon:ident, $x64:ident, $key_len:path, $tag_len:path) => {
         mod $mod_name {
             use super::*;
             use libcrux_secrets::U8;
 
             use libcrux_traits::aead::arrayref::{DecryptError, EncryptError, KeyGenError};
-            use $variant::KEY_LEN;
+
+            use $key_len as KEY_LEN;
+            use $tag_len as TAG_LEN;
 
             pub type Key = [u8; KEY_LEN];
             pub type Tag = [u8; TAG_LEN];
@@ -242,20 +247,108 @@ use crate::implementations::PortableAesGcm256 as X64AesGcm256;
 #[cfg(feature = "simd256")]
 use crate::implementations::X64AesGcm256;
 
+#[cfg(feature = "simd128")]
+use crate::implementations::NeonAesCcm128;
+#[cfg(not(feature = "simd128"))]
+use crate::implementations::PortableAesCcm128 as NeonAesCcm128;
+
+#[cfg(not(feature = "simd256"))]
+use crate::implementations::PortableAesCcm128 as X64AesCcm128;
+#[cfg(feature = "simd256")]
+use crate::implementations::X64AesCcm128;
+
+#[cfg(feature = "simd128")]
+use crate::implementations::NeonAesCcm256;
+#[cfg(not(feature = "simd128"))]
+use crate::implementations::PortableAesCcm256 as NeonAesCcm256;
+
+#[cfg(not(feature = "simd256"))]
+use crate::implementations::PortableAesCcm256 as X64AesCcm256;
+#[cfg(feature = "simd256")]
+use crate::implementations::X64AesCcm256;
+
+#[cfg(feature = "simd128")]
+use crate::implementations::NeonAesCcm128ShortTag;
+#[cfg(not(feature = "simd128"))]
+use crate::implementations::PortableAesCcm128ShortTag as NeonAesCcm128ShortTag;
+
+#[cfg(not(feature = "simd256"))]
+use crate::implementations::PortableAesCcm128ShortTag as X64AesCcm128ShortTag;
+#[cfg(feature = "simd256")]
+use crate::implementations::X64AesCcm128ShortTag;
+
+#[cfg(feature = "simd128")]
+use crate::implementations::NeonAesCcm256ShortTag;
+#[cfg(not(feature = "simd128"))]
+use crate::implementations::PortableAesCcm256ShortTag as NeonAesCcm256ShortTag;
+
+#[cfg(not(feature = "simd256"))]
+use crate::implementations::PortableAesCcm256ShortTag as X64AesCcm256ShortTag;
+#[cfg(feature = "simd256")]
+use crate::implementations::X64AesCcm256ShortTag;
+
 api!(
-    aes128,
+    aes128gcm,
     aes_gcm_128,
     AesGcm128,
     PortableAesGcm128,
     NeonAesGcm128,
-    X64AesGcm128
+    X64AesGcm128,
+    crate::aes::AES_128_KEY_LEN,
+    crate::TAG_LEN
 );
 
 api!(
-    aes256,
+    aes256gcm,
     aes_gcm_256,
     AesGcm256,
     PortableAesGcm256,
     NeonAesGcm256,
-    X64AesGcm256
+    X64AesGcm256,
+    crate::aes::AES_256_KEY_LEN,
+    crate::TAG_LEN
+);
+
+api!(
+    aes128ccm,
+    aes_ccm_128,
+    AesCcm128,
+    PortableAesCcm128,
+    NeonAesCcm128,
+    X64AesCcm128,
+    crate::aes::AES_128_KEY_LEN,
+    crate::TAG_LEN
+);
+
+api!(
+    aes256ccm,
+    aes_ccm_256,
+    AesCcm256,
+    PortableAesCcm256,
+    NeonAesCcm256,
+    X64AesCcm256,
+    crate::aes::AES_256_KEY_LEN,
+    crate::TAG_LEN
+);
+
+api!(
+    aes128ccm_short_tag,
+    aes_ccm_128_8,
+    AesCcm128ShortTag,
+    PortableAesCcm128ShortTag,
+    NeonAesCcm128ShortTag,
+    X64AesCcm128ShortTag,
+    crate::aes::AES_128_KEY_LEN,
+    crate::CCM_SHORT_TAG_LEN
+);
+
+api!(
+    aes256ccm_short_tag,
+    aes_ccm_256_8,
+    AesCcm256ShortTag,
+    PortableAesCcm256ShortTag,
+    NeonAesCcm256ShortTag,
+    X64AesCcm256ShortTag,
+    crate::aes::AES_256_KEY_LEN,
+    crate::CCM_SHORT_TAG_LEN
 );

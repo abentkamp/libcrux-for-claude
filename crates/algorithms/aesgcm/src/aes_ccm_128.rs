@@ -169,9 +169,11 @@ ccm_num_keys!(11); // AES-128
 ccm_num_keys!(15); // AES-256
 
 pub(crate) type AesCcm128State<T: AESState> = State<CCM_TAG_LEN, 11, T>;
+#[allow(non_camel_case_types)]
 pub(crate) type AesCcm128_8_State<T: AESState> = State<CCM_8_TAG_LEN, 11, T>;
 
 pub(crate) type AesCcm256State<T: AESState> = State<CCM_TAG_LEN, 15, T>;
+#[allow(non_camel_case_types)]
 pub(crate) type AesCcm256_8_State<T: AESState> = State<CCM_8_TAG_LEN, 15, T>;
 
 aesccm!(AesCcm128State<T>, AesCcm128CtrContext, 16);

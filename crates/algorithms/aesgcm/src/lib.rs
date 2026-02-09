@@ -52,7 +52,6 @@ mod platform;
 mod traits_api;
 
 mod aes_ccm;
-pub mod aes_ccm_128;
 mod aes_gcm;
 
 /// Implementations of AES-GCM 128
@@ -193,6 +192,100 @@ pub mod aes_gcm_128;
 /// ```
 pub mod aes_gcm_256;
 
+pub mod aes_ccm_128 {
+    use crate::aes_gcm::type_aliases;
+    type_aliases!(AesCcm128, "AES-CCM 128");
+    pub mod portable {
+        pub use crate::implementations::PortableAesCcm128;
+        pub use libcrux_traits::aead::typed_owned::{Key, Nonce, Tag};
+        pub use libcrux_traits::aead::typed_refs::{KeyMut, KeyRef, NonceRef, TagMut, TagRef};
+    }
+
+    #[cfg(feature = "simd128")]
+    pub mod neon {
+        pub use crate::implementations::NeonAesCcm128;
+        pub use libcrux_traits::aead::typed_owned::{Key, Nonce, Tag};
+        pub use libcrux_traits::aead::typed_refs::{KeyMut, KeyRef, NonceRef, TagMut, TagRef};
+    }
+
+    #[cfg(feature = "simd256")]
+    pub mod x64 {
+        pub use crate::implementations::X64AesCcm128;
+        pub use libcrux_traits::aead::typed_owned::{Key, Nonce, Tag};
+        pub use libcrux_traits::aead::typed_refs::{KeyMut, KeyRef, NonceRef, TagMut, TagRef};
+    }
+
+    pub mod short_tag {
+        use crate::aes_gcm::type_aliases;
+        type_aliases!(AesCcm128ShortTag, "AES-CCM 128 (8 octet tag)");
+        pub mod portable {
+            pub use crate::implementations::PortableAesCcm128ShortTag;
+            pub use libcrux_traits::aead::typed_owned::{Key, Nonce, Tag};
+            pub use libcrux_traits::aead::typed_refs::{KeyMut, KeyRef, NonceRef, TagMut, TagRef};
+        }
+
+        #[cfg(feature = "simd128")]
+        pub mod neon {
+            pub use crate::implementations::NeonAesCcm128ShortTag;
+            pub use libcrux_traits::aead::typed_owned::{Key, Nonce, Tag};
+            pub use libcrux_traits::aead::typed_refs::{KeyMut, KeyRef, NonceRef, TagMut, TagRef};
+        }
+
+        #[cfg(feature = "simd256")]
+        pub mod x64 {
+            pub use crate::implementations::X64AesCcm128ShortTag;
+            pub use libcrux_traits::aead::typed_owned::{Key, Nonce, Tag};
+            pub use libcrux_traits::aead::typed_refs::{KeyMut, KeyRef, NonceRef, TagMut, TagRef};
+        }
+    }
+}
+
+pub mod aes_ccm_256 {
+    pub mod portable {
+        pub use crate::implementations::PortableAesCcm256;
+        pub use libcrux_traits::aead::typed_owned::{Key, Nonce, Tag};
+        pub use libcrux_traits::aead::typed_refs::{KeyMut, KeyRef, NonceRef, TagMut, TagRef};
+    }
+
+    #[cfg(feature = "simd128")]
+    pub mod neon {
+        pub use crate::implementations::NeonAesCcm256;
+        pub use libcrux_traits::aead::typed_owned::{Key, Nonce, Tag};
+        pub use libcrux_traits::aead::typed_refs::{KeyMut, KeyRef, NonceRef, TagMut, TagRef};
+    }
+
+    #[cfg(feature = "simd256")]
+    pub mod x64 {
+        pub use crate::implementations::X64AesCcm256;
+        pub use libcrux_traits::aead::typed_owned::{Key, Nonce, Tag};
+        pub use libcrux_traits::aead::typed_refs::{KeyMut, KeyRef, NonceRef, TagMut, TagRef};
+    }
+
+    pub mod short_tag {
+        use crate::aes_gcm::type_aliases;
+        type_aliases!(AesCcm256ShortTag, "AES-CCM 256 (8 octet tag)");
+        pub mod portable {
+            pub use crate::implementations::PortableAesCcm256ShortTag;
+            pub use libcrux_traits::aead::typed_owned::{Key, Nonce, Tag};
+            pub use libcrux_traits::aead::typed_refs::{KeyMut, KeyRef, NonceRef, TagMut, TagRef};
+        }
+
+        #[cfg(feature = "simd128")]
+        pub mod neon {
+            pub use crate::implementations::NeonAesCcm256ShortTag;
+            pub use libcrux_traits::aead::typed_owned::{Key, Nonce, Tag};
+            pub use libcrux_traits::aead::typed_refs::{KeyMut, KeyRef, NonceRef, TagMut, TagRef};
+        }
+
+        #[cfg(feature = "simd256")]
+        pub mod x64 {
+            pub use crate::implementations::X64AesCcm256ShortTag;
+            pub use libcrux_traits::aead::typed_owned::{Key, Nonce, Tag};
+            pub use libcrux_traits::aead::typed_refs::{KeyMut, KeyRef, NonceRef, TagMut, TagRef};
+        }
+    }
+}
+
 /// Trait for an AES State.
 /// Implemented for 128 and 256.
 pub(crate) trait State {
@@ -250,6 +343,80 @@ pub(crate) mod implementations {
     #[derive(Clone, Copy, PartialEq, Eq)]
     pub struct X64AesGcm128;
 
+    /// Access to [lower-level AEAD APIs](libcrux_traits::aead) for platform-multiplexed AES-CCM 128.
+    ///
+    /// The implementation used is determined automatically at runtime.
+    /// - `x64`
+    /// - `neon`
+    /// - `portable`
+    ///
+    /// For more information on usage, see [`aes_ccm_128`].
+    #[derive(Clone, Copy, PartialEq, Eq)]
+    pub struct AesCcm128;
+
+    /// Access to [lower-level AEAD APIs](libcrux_traits::aead) for portable AES-CCM 128.
+    ///
+    /// For more information on usage, see [`aes_ccm_128`].
+    #[derive(Clone, Copy, PartialEq, Eq)]
+    pub struct PortableAesCcm128;
+
+    #[cfg(feature = "simd128")]
+    #[derive(Clone, Copy, PartialEq, Eq)]
+    /// Access to [lower-level AEAD APIs](libcrux_traits::aead) for ARM Neon optimized AES-CCM 128.
+    ///
+    /// Should only be used directly after performing runtime checks for the necessary CPU
+    /// features.
+    ///
+    /// For more information on usage, see [`aes_ccm_128`].
+    pub struct NeonAesCcm128;
+
+    /// Access to [lower-level AEAD APIs](libcrux_traits::aead) for x86_64 AES-NI optimized AES-CCM 128.
+    ///
+    /// Should only be used directly after performing runtime checks for the necessary CPU
+    /// features.
+    ///
+    /// For more information on usage, see [`aes_ccm_128`].
+    #[cfg(feature = "simd256")]
+    #[derive(Clone, Copy, PartialEq, Eq)]
+    pub struct X64AesCcm128;
+
+    /// Access to [lower-level AEAD APIs](libcrux_traits::aead) for platform-multiplexed AES-CCM 128.
+    ///
+    /// The implementation used is determined automatically at runtime.
+    /// - `x64`
+    /// - `neon`
+    /// - `portable`
+    ///
+    /// For more information on usage, see [`aes_ccm_128`].
+    #[derive(Clone, Copy, PartialEq, Eq)]
+    pub struct AesCcm128ShortTag;
+
+    /// Access to [lower-level AEAD APIs](libcrux_traits::aead) for portable AES-CCM 128.
+    ///
+    /// For more information on usage, see [`aes_ccm_128`].
+    #[derive(Clone, Copy, PartialEq, Eq)]
+    pub struct PortableAesCcm128ShortTag;
+
+    #[cfg(feature = "simd128")]
+    #[derive(Clone, Copy, PartialEq, Eq)]
+    /// Access to [lower-level AEAD APIs](libcrux_traits::aead) for ARM Neon optimized AES-CCM 128.
+    ///
+    /// Should only be used directly after performing runtime checks for the necessary CPU
+    /// features.
+    ///
+    /// For more information on usage, see [`aes_ccm_128`].
+    pub struct NeonAesCcm128ShortTag;
+
+    /// Access to [lower-level AEAD APIs](libcrux_traits::aead) for x86_64 AES-NI optimized AES-CCM 128.
+    ///
+    /// Should only be used directly after performing runtime checks for the necessary CPU
+    /// features.
+    ///
+    /// For more information on usage, see [`aes_ccm_128`].
+    #[cfg(feature = "simd256")]
+    #[derive(Clone, Copy, PartialEq, Eq)]
+    pub struct X64AesCcm128ShortTag;
+
     /// Access to [lower-level AEAD APIs](libcrux_traits::aead) for platform-multiplexed AES-GCM 256.
     ///
     /// The implementation used is determined automatically at runtime.
@@ -280,11 +447,76 @@ pub(crate) mod implementations {
     #[derive(Clone, Copy, PartialEq, Eq)]
     #[cfg(feature = "simd256")]
     pub struct X64AesGcm256;
+
+    /// Access to [lower-level AEAD APIs](libcrux_traits::aead) for platform-multiplexed AES-CCM 256.
+    ///
+    /// The implementation used is determined automatically at runtime.
+    /// - `x64`
+    /// - `neon`
+    /// - `portable`
+    ///
+    /// For more information on usage, see [`aes_ccm_256`].
+    #[derive(Clone, Copy, PartialEq, Eq)]
+    pub struct AesCcm256;
+
+    /// Access to [lower-level AEAD APIs](libcrux_traits::aead) for portable AES-CCM 256.
+    ///
+    /// For more information on usage, see [`aes_ccm_256`].
+    #[derive(Clone, Copy, PartialEq, Eq)]
+    pub struct PortableAesCcm256;
+
+    /// Access to [lower-level AEAD APIs](libcrux_traits::aead) for ARM Neon optimized AES-CCM 256.
+    ///
+    /// For more information on usage, see [`aes_ccm_256`].
+    #[cfg(feature = "simd128")]
+    #[derive(Clone, Copy, PartialEq, Eq)]
+    pub struct NeonAesCcm256;
+
+    /// Access to [lower-level AEAD APIs](libcrux_traits::aead) for x86_64 AES-NI optimized AES-CCM 256.
+    ///
+    /// For more information on usage, see [`aes_ccm_256`].
+    #[derive(Clone, Copy, PartialEq, Eq)]
+    #[cfg(feature = "simd256")]
+    pub struct X64AesCcm256;
+
+    /// Access to [lower-level AEAD APIs](libcrux_traits::aead) for platform-multiplexed AES-CCM 256.
+    ///
+    /// The implementation used is determined automatically at runtime.
+    /// - `x64`
+    /// - `neon`
+    /// - `portable`
+    ///
+    /// For more information on usage, see [`aes_ccm_256`].
+    #[derive(Clone, Copy, PartialEq, Eq)]
+    pub struct AesCcm256ShortTag;
+
+    /// Access to [lower-level AEAD APIs](libcrux_traits::aead) for portable AES-CCM 256.
+    ///
+    /// For more information on usage, see [`aes_ccm_256`].
+    #[derive(Clone, Copy, PartialEq, Eq)]
+    pub struct PortableAesCcm256ShortTag;
+
+    /// Access to [lower-level AEAD APIs](libcrux_traits::aead) for ARM Neon optimized AES-CCM 256.
+    ///
+    /// For more information on usage, see [`aes_ccm_256`].
+    #[cfg(feature = "simd128")]
+    #[derive(Clone, Copy, PartialEq, Eq)]
+    pub struct NeonAesCcm256ShortTag;
+
+    /// Access to [lower-level AEAD APIs](libcrux_traits::aead) for x86_64 AES-NI optimized AES-CCM 256.
+    ///
+    /// For more information on usage, see [`aes_ccm_256`].
+    #[derive(Clone, Copy, PartialEq, Eq)]
+    #[cfg(feature = "simd256")]
+    pub struct X64AesCcm256ShortTag;
 }
 // pub use implementations::*;
 
 /// Tag length.
 pub const TAG_LEN: usize = 16;
+
+/// Reduced tag length for AES-CCM, as per RFC 6655.
+pub const CCM_SHORT_TAG_LEN: usize = 8;
 
 /// Nonce length.
 pub const NONCE_LEN: usize = 12;
@@ -390,55 +622,67 @@ macro_rules! pub_crate_mod {
     };
 }
 
-pub mod aes_ccm_128_external {
-    pub use crate::portable::aes_ccm_128::{decrypt, encrypt};
-    pub use crate::portable::aes_ccm_128_8::{
-        decrypt as decrypt_short_tag, encrypt as encrypt_short_tag,
-    };
-}
-
-pub mod aes_ccm_256_external {
-    pub use crate::portable::aes_ccm_256::{decrypt, encrypt};
-    pub use crate::portable::aes_ccm_256_8::{
-        decrypt as decrypt_short_tag, encrypt as encrypt_short_tag,
-    };
-}
-
 pub(crate) mod portable {
     pub_crate_mod!(aes_gcm_128, 16, crate::aes_gcm_128::State<platform::portable::State, platform::portable::FieldElement>, r"AES-GCM 128 ");
     pub_crate_mod!(aes_gcm_256, 32, crate::aes_gcm_256::State<platform::portable::State, platform::portable::FieldElement>, r"AES-GCM 256 ");
     pub_crate_mod!(
         aes_ccm_128,
         16,
-        crate::aes_ccm_128::AesCcm128State<platform::portable::State>,
+        crate::aes_ccm::AesCcm128State<platform::portable::State>,
         r"AES-CCM 128 "
     );
     pub_crate_mod!(
         aes_ccm_128_8,
         16,
-        crate::aes_ccm_128::AesCcm128_8_State<platform::portable::State>,
+        crate::aes_ccm::AesCcm128_8_State<platform::portable::State>,
         r"AES-CCM 128 (8-octet tag) "
     );
 
     pub_crate_mod!(
         aes_ccm_256,
         32,
-        crate::aes_ccm_128::AesCcm256State<platform::portable::State>,
+        crate::aes_ccm::AesCcm256State<platform::portable::State>,
         r"AES-CCM 256 "
     );
 
     pub_crate_mod!(
         aes_ccm_256_8,
         32,
-        crate::aes_ccm_128::AesCcm256_8_State<platform::portable::State>,
+        crate::aes_ccm::AesCcm256_8_State<platform::portable::State>,
         r"AES-CCM 256 (8-octet tag) "
     );
 }
 
 #[cfg(feature = "simd128")]
 pub(crate) mod neon {
-    // pub_crate_mod!(r"AES-GCM 128 ",  aes_gcm_128, crate::aes_gcm_128::State<platform::neon::State, platform::neon::FieldElement>, r"AES-GCM 128 ");
-    // pub_crate_mod!(r"AES-GCM 256 ",  aes_gcm_256, crate::aes_gcm_256::State<platform::neon::State, platform::neon::FieldElement>, r"AES-GCM 256 ");
+    pub_crate_mod!(aes_gcm_128, 16, crate::aes_gcm_128::State<platform::neon::State, platform::neon::FieldElement>, r"AES-GCM 128 ");
+    pub_crate_mod!(aes_gcm_256, 32, crate::aes_gcm_256::State<platform::neon::State, platform::neon::FieldElement>, r"AES-GCM 256 ");
+    pub_crate_mod!(
+        aes_ccm_128,
+        16,
+        crate::aes_ccm::AesCcm128State<platform::neon::State>,
+        r"AES-CCM 128 "
+    );
+    pub_crate_mod!(
+        aes_ccm_128_8,
+        16,
+        crate::aes_ccm::AesCcm128_8_State<platform::neon::State>,
+        r"AES-CCM 128 (8-octet tag) "
+    );
+
+    pub_crate_mod!(
+        aes_ccm_256,
+        32,
+        crate::aes_ccm::AesCcm256State<platform::neon::State>,
+        r"AES-CCM 256 "
+    );
+
+    pub_crate_mod!(
+        aes_ccm_256_8,
+        32,
+        crate::aes_ccm::AesCcm256_8_State<platform::neon::State>,
+        r"AES-CCM 256 (8-octet tag) "
+    );
 }
 
 #[cfg(feature = "simd256")]
@@ -446,10 +690,9 @@ pub(crate) mod x64 {
     // Here we don't use the `pub_crate_mod` macro because we need to add target features
     // onto the functions.
     macro_rules! x64_pub_crate_mod {
-        ($variant_comment:literal, $mod_name:ident, $state:ty) => {
+        ($variant_comment:literal, $mod_name:ident, $state:ty, $key_len:literal) => {
             #[doc = $variant_comment]
             pub mod $mod_name {
-                use crate::$mod_name::KEY_LEN;
                 use crate::{platform, DecryptError, EncryptError};
 
                 type State = $state;
@@ -464,7 +707,7 @@ pub(crate) mod x64 {
                     ciphertext: &mut [u8],
                     tag: &mut [u8],
                 ) -> Result<(), EncryptError> {
-                    debug_assert!(key.len() == KEY_LEN);
+                    debug_assert!(key.len() == $key_len);
 
                     // due to use of `target_feature`, unsafe is needed here
                     #[inline]
@@ -497,7 +740,7 @@ pub(crate) mod x64 {
                     tag: &[u8],
                     plaintext: &mut [u8],
                 ) -> Result<(), DecryptError> {
-                    debug_assert!(key.len() == KEY_LEN);
+                    debug_assert!(key.len() == $key_len);
 
                     // due to use of `target_feature`, unsafe is needed here
                     #[inline]
@@ -523,15 +766,40 @@ pub(crate) mod x64 {
         };
     }
 
-    x64_pub_crate_mod!(r"AES-GCM 128 ", aes_gcm_128, crate::aes_gcm_128::State<platform::x64::State, platform::x64::FieldElement>);
-    x64_pub_crate_mod!(r"AES-GCM 256 ", aes_gcm_256, crate::aes_gcm_256::State<platform::x64::State, platform::x64::FieldElement>);
+    x64_pub_crate_mod!(r"AES-GCM 128 ", aes_gcm_128, crate::aes_gcm_128::State<platform::x64::State, platform::x64::FieldElement>, 16);
+
+    x64_pub_crate_mod!(r"AES-GCM 256 ", aes_gcm_256, crate::aes_gcm_256::State<platform::x64::State, platform::x64::FieldElement>, 32);
+    x64_pub_crate_mod!(
+        r"AES-CCM 128 ",
+        aes_ccm_128,
+        crate::aes_ccm::AesCcm128State<platform::x64::State>,
+        16
+    );
+    x64_pub_crate_mod!(
+        r"AES-CCM 128 (8-octet tag) ",
+        aes_ccm_128_8,
+        crate::aes_ccm::AesCcm128_8_State<platform::x64::State>,
+        16
+    );
+    x64_pub_crate_mod!(
+        r"AES-CCM 256 ",
+        aes_ccm_256,
+        crate::aes_ccm::AesCcm256State<platform::x64::State>,
+        32
+    );
+    x64_pub_crate_mod!(
+        r"AES-CCM 256 (8-octet tag) ",
+        aes_ccm_256_8,
+        crate::aes_ccm::AesCcm256_8_State<platform::x64::State>,
+        32
+    );
 }
 
 // traits re-exports
 pub use libcrux_traits::aead::consts::AeadConsts;
 pub use libcrux_traits::aead::typed_refs::Aead;
 
-pub use implementations::{AesGcm128, AesGcm256};
+pub use implementations::{AesCcm128, AesCcm256, AesGcm128, AesGcm256};
 
 #[doc(inline)]
 pub use aes_gcm_128::Key as AesGcm128Key;
