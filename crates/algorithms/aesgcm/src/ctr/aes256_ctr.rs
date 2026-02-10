@@ -31,10 +31,7 @@ impl<T: AESState, const CTR_LEN: usize, const NONCE_START: usize>
         let mut ctr_nonce = [0u8; 16];
         if NONCE_START == 1 {
             // write flags into the first byte
-            println!("Setting CTR flags");
-
             ctr_nonce[0] = (CTR_LEN - 1) as u8;
-            println!("CTR_FLAGS: {}", ctr_nonce[0]);
         }
         ctr_nonce[NONCE_START..NONCE_START + NONCE_LEN].copy_from_slice(nonce);
 

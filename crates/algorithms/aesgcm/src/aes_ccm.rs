@@ -92,6 +92,7 @@ macro_rules! aesccm {
     };
 }
 
+// Length in bytes of the field encoding the message length in bytes.
 const MSG_ENC_LEN: usize = 3;
 pub(crate) const AES_CCM_CTR_LEN: usize = 3;
 
@@ -114,11 +115,11 @@ macro_rules! ccm_num_keys {
                     + (MSG_ENC_LEN as u8)
                     - 1;
 
-                // XXX: This assumes usize is 64 bits wide, should be made more robust.
-                self.accumulator[AES_BLOCK_LEN - MSG_ENC_LEN as usize..]
-                    .copy_from_slice(&payload_len.to_be_bytes()[8 - MSG_ENC_LEN as usize..]);
+                self.accumulator[AES_BLOCK_LEN - MSG_ENC_LEN as usize..].copy_from_slice(
+                    &payload_len.to_be_bytes()
+                        [core::mem::size_of::<usize>() - MSG_ENC_LEN as usize..],
+                );
 
-                println!("B_0: {:?}", self.accumulator);
                 let mut st = T::new();
                 st.load_block(&self.accumulator);
                 block_cipher(&mut st, &self.aes_state.extended_key);
@@ -128,7 +129,6 @@ macro_rules! ccm_num_keys {
                 // Encode AAD length
                 let aad_len = aad.len();
                 if aad_len == 0 {
-                    println!("No AAD, returning");
                     return;
                 }
 
@@ -138,7 +138,7 @@ macro_rules! ccm_num_keys {
                 if aad_len < (1 << 16) - (1 << 8) {
                     current_block[0..2].copy_from_slice(&aad_len.to_be_bytes()[6..]);
                 }
-                if aad_len >= (1 << 16) - (1 << 8) && aad_len < (1 << 32) {
+                if ((1 << 16) - (1 << 8)..(1 << 32)).contains(&aad_len) {
                     aad_len_encoding_len = 6;
                     current_block[0] = 0xff;
                     current_block[1] = 0xfe;
@@ -150,9 +150,6 @@ macro_rules! ccm_num_keys {
                     current_block[2..8].copy_from_slice(&aad_len.to_be_bytes());
                 }
 
-                println!("AAD length: {aad_len}");
-                println!("AAD length encoding: {:?}", current_block);
-
                 if aad_len + aad_len_encoding_len <= AES_BLOCK_LEN {
                     current_block[aad_len_encoding_len..aad_len + aad_len_encoding_len]
                         .copy_from_slice(&aad);
@@ -162,7 +159,6 @@ macro_rules! ccm_num_keys {
                     let full_blocks = (aad_len_encoding_len + aad_len) / AES_BLOCK_LEN;
                     let remainder = (aad_len_encoding_len + aad_len) - full_blocks * AES_BLOCK_LEN;
                     let initial_aad_chunk_len = AES_BLOCK_LEN - aad_len_encoding_len;
-                    println!("AAD Full blocks: {full_blocks}, remaining bytes: {remainder}");
 
                     for i in 0..full_blocks {
                         if i == 0 {
@@ -188,7 +184,6 @@ macro_rules! ccm_num_keys {
             pub fn ccm_update_plaintext(&mut self, payload: &[u8]) {
                 let full_blocks = payload.len() / AES_BLOCK_LEN;
                 let remainder = payload.len() - full_blocks * AES_BLOCK_LEN;
-                println!("Payload Full blocks: {full_blocks}, remaining bytes: {remainder}");
 
                 for i in 0..full_blocks {
                     let offset = i * AES_BLOCK_LEN;
@@ -207,8 +202,7 @@ macro_rules! ccm_num_keys {
                 let mut key_block = [0u8; AES_BLOCK_LEN];
 
                 for i in 0..full_blocks {
-                    self.aes_state
-                        .key_block((i + 1) as u32, key_block.as_mut_slice());
+                    self.aes_state.key_block((i + 1) as u32, &mut key_block);
                     let offset = i * AES_BLOCK_LEN;
                     for j in 0..AES_BLOCK_LEN {
                         key_block[j] ^= ciphertext[offset + j]
@@ -219,7 +213,7 @@ macro_rules! ccm_num_keys {
 
                 if remainder != 0 {
                     self.aes_state
-                        .key_block((full_blocks + 1) as u32, key_block.as_mut_slice());
+                        .key_block((full_blocks + 1) as u32, &mut key_block);
                     let offset = full_blocks * AES_BLOCK_LEN;
                     for j in 0..remainder {
                         key_block[j] ^= ciphertext[offset + j]

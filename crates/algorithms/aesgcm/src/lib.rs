@@ -64,10 +64,10 @@
 //! 6655](https://datatracker.ietf.org/doc/html/rfc6655) can be found in
 //! the `short_tag` submodules of `aes_ccm_128` and `aes_ccm_256`.
 
-// #![no_std]
+#![no_std]
 #![deny(unsafe_code)]
-// #[cfg(feature = "std")]
-// extern crate std;
+#[cfg(feature = "std")]
+extern crate std;
 
 mod aes;
 // mod ccm;
