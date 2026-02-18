@@ -28,7 +28,7 @@ macro_rules! impl_traits_public_api {
 
 /// Macro to implement the different structs and multiplexing.
 macro_rules! api {
-    ($mod_name:ident, $variant:ident, $multiplexing:ty, $portable:ident, $neon:ident, $x64:ident, $key_len:path, $tag_len:path) => {
+    ($mod_name:ident, $variant:ident, $multiplexing:ty, $portable:ident, $neon:ident, $x64:ident, $key_len:path, $tag_len:path, $aad_limit: expr) => {
         mod $mod_name {
             use super::*;
             use libcrux_secrets::U8;
@@ -66,6 +66,21 @@ macro_rules! api {
                         aad: &[u8],
                         plaintext: &[u8],
                     ) -> Result<(), EncryptError> {
+                        // plaintext length check, this is a requirement of AES-CTR
+                        if plaintext.len() / crate::aes::AES_BLOCK_LEN >= (u32::MAX - 1) as usize {
+                            return Err(EncryptError::PlaintextTooLong);
+                        }
+
+                        // ensure ciphertext and plaintext have same length
+                        if ciphertext.len() != plaintext.len() {
+                            return Err(EncryptError::WrongCiphertextLength);
+                        }
+
+                        // ensure AAD length is within cipher-specific limit
+                        if aad.len() > usize::MAX - $aad_limit {
+                            return Err(EncryptError::AadTooLong);
+                        }
+
                         // SIMD256 needs to come first because SIMD128 is true for
                         // x64 as well, but we don't actually implement it.
                         if libcrux_platform::simd256_support() && libcrux_platform::aes_ni_support() {
@@ -87,6 +102,21 @@ macro_rules! api {
                         ciphertext: &[u8],
                         tag: &Tag,
                     ) -> Result<(), DecryptError> {
+                        // plaintext length check, this is a requirement of AES-CTR
+                        if ciphertext.len() / crate::aes::AES_BLOCK_LEN >= (u32::MAX - 1) as usize {
+                            return Err(DecryptError::PlaintextTooLong);
+                        }
+
+                        // ensure ciphertext and plaintext have same length
+                        if ciphertext.len() != plaintext.len() {
+                            return Err(DecryptError::WrongPlaintextLength);
+                        }
+
+                        // ensure AAD length is within cipher-specific limit
+                        if aad.len() > usize::MAX - $aad_limit {
+                            return Err(DecryptError::AadTooLong);
+                        }
+
                         // SIMD256 needs to come first because SIMD128 is true for
                         // x64 as well, but we don't actually implement it.
                         if libcrux_platform::simd256_support() && libcrux_platform::aes_ni_support() {
@@ -126,6 +156,21 @@ macro_rules! api {
                         aad: &[u8],
                         plaintext: &[u8],
                     ) -> Result<(), EncryptError> {
+                        // plaintext length check, this is a requirement of AES-CTR
+                        if plaintext.len() / crate::aes::AES_BLOCK_LEN >= (u32::MAX - 1) as usize {
+                            return Err(EncryptError::PlaintextTooLong);
+                        }
+
+                        // ensure ciphertext and plaintext have same length
+                        if ciphertext.len() != plaintext.len() {
+                            return Err(EncryptError::WrongCiphertextLength);
+                        }
+
+                        // ensure AAD length is within cipher-specific limit
+                        if aad.len() > usize::MAX - $aad_limit {
+                            return Err(EncryptError::AadTooLong);
+                        }
+
                         crate::portable::$variant::encrypt(key, nonce, aad, plaintext, ciphertext, tag)
                     }
 
@@ -137,6 +182,21 @@ macro_rules! api {
                         ciphertext: &[u8],
                         tag: &Tag,
                     ) -> Result<(), DecryptError> {
+                        // plaintext length check, this is a requirement of AES-CTR
+                        if ciphertext.len() / crate::aes::AES_BLOCK_LEN >= (u32::MAX - 1) as usize {
+                            return Err(DecryptError::PlaintextTooLong);
+                        }
+
+                        // ensure ciphertext and plaintext have same length
+                        if ciphertext.len() != plaintext.len() {
+                            return Err(DecryptError::WrongPlaintextLength);
+                        }
+
+                        // ensure AAD length is within cipher-specific limit
+                        if aad.len() > usize::MAX - $aad_limit {
+                            return Err(DecryptError::AadTooLong);
+                        }
+
                         crate::portable::$variant::decrypt(key, nonce, aad, ciphertext, tag, plaintext)
                     }
                 }
@@ -167,6 +227,21 @@ macro_rules! api {
                         aad: &[u8],
                         plaintext: &[u8],
                     ) -> Result<(), EncryptError> {
+                        // plaintext length check, this is a requirement of AES-CTR
+                        if plaintext.len() / crate::aes::AES_BLOCK_LEN >= (u32::MAX - 1) as usize {
+                            return Err(EncryptError::PlaintextTooLong);
+                        }
+
+                        // ensure ciphertext and plaintext have same length
+                        if ciphertext.len() != plaintext.len() {
+                            return Err(EncryptError::WrongCiphertextLength);
+                        }
+
+                        // ensure AAD length is within cipher-specific limit
+                        if aad.len() > usize::MAX - $aad_limit {
+                            return Err(EncryptError::AadTooLong);
+                        }
+
                         crate::neon::$variant::encrypt(key, nonce, aad, plaintext, ciphertext, tag)
                     }
 
@@ -178,6 +253,21 @@ macro_rules! api {
                         ciphertext: &[u8],
                         tag: &Tag,
                     ) -> Result<(), DecryptError> {
+                        // plaintext length check, this is a requirement of AES-CTR
+                        if ciphertext.len() / crate::aes::AES_BLOCK_LEN >= (u32::MAX - 1) as usize {
+                            return Err(DecryptError::PlaintextTooLong);
+                        }
+
+                        // ensure ciphertext and plaintext have same length
+                        if ciphertext.len() != plaintext.len() {
+                            return Err(DecryptError::WrongPlaintextLength);
+                        }
+
+                        // ensure AAD length is within cipher-specific limit
+                        if aad.len() > usize::MAX -  $aad_limit {
+                            return Err(DecryptError::AadTooLong);
+                        }
+
                         crate::neon::$variant::decrypt(key, nonce, aad, ciphertext, tag, plaintext)
                     }
                 }
@@ -208,6 +298,21 @@ macro_rules! api {
                         aad: &[u8],
                         plaintext: &[u8],
                     ) -> Result<(), EncryptError> {
+                        // plaintext length check, this is a requirement of AES-CTR
+                        if plaintext.len() / crate::aes::AES_BLOCK_LEN >= (u32::MAX - 1) as usize {
+                            return Err(EncryptError::PlaintextTooLong);
+                        }
+
+                        // ensure ciphertext and plaintext have same length
+                        if ciphertext.len() != plaintext.len() {
+                            return Err(EncryptError::WrongCiphertextLength);
+                        }
+
+                        // ensure AAD length is within cipher-specific limit
+                        if aad.len() > usize::MAX - $aad_limit {
+                            return Err(EncryptError::AadTooLong);
+                        }
+
                         crate::x64::$variant::encrypt(key, nonce, aad, plaintext, ciphertext, tag)
                     }
 
@@ -219,6 +324,21 @@ macro_rules! api {
                         ciphertext: &[u8],
                         tag: &Tag,
                     ) -> Result<(), DecryptError> {
+                        // plaintext length check, this is a requirement of AES-CTR
+                        if ciphertext.len() / crate::aes::AES_BLOCK_LEN >= (u32::MAX - 1) as usize {
+                            return Err(DecryptError::PlaintextTooLong);
+                        }
+
+                        // ensure ciphertext and plaintext have same length
+                        if ciphertext.len() != plaintext.len() {
+                            return Err(DecryptError::WrongPlaintextLength);
+                        }
+
+                        // ensure AAD length is within cipher-specific limit
+                        if aad.len() > usize::MAX - $aad_limit {
+                            return Err(DecryptError::AadTooLong);
+                        }
+
                         crate::x64::$variant::decrypt(key, nonce, aad, ciphertext, tag, plaintext)
                     }
                 }
@@ -286,6 +406,12 @@ not_cfg!(
     use crate::implementations::PortableAesCcm256ShortTag as X64AesCcm256ShortTag;
 );
 
+/// AES-GCM allows for AAD to be of size `usize::MAX`.
+const GCM_AAD_BOUNDARY: usize = 0;
+
+/// AES-CCM allows for AAD to be of size `usize::MAX - 10`.
+const CCM_AAD_BOUNDARY: usize = 10;
+
 api!(
     aes128gcm,
     aes_gcm_128,
@@ -294,7 +420,8 @@ api!(
     NeonAesGcm128,
     X64AesGcm128,
     crate::aes::AES_128_KEY_LEN,
-    crate::TAG_LEN
+    crate::TAG_LEN,
+    GCM_AAD_BOUNDARY
 );
 
 api!(
@@ -305,7 +432,8 @@ api!(
     NeonAesGcm256,
     X64AesGcm256,
     crate::aes::AES_256_KEY_LEN,
-    crate::TAG_LEN
+    crate::TAG_LEN,
+    GCM_AAD_BOUNDARY
 );
 
 api!(
@@ -316,7 +444,8 @@ api!(
     NeonAesCcm128,
     X64AesCcm128,
     crate::aes::AES_128_KEY_LEN,
-    crate::TAG_LEN
+    crate::TAG_LEN,
+    CCM_AAD_BOUNDARY
 );
 
 api!(
@@ -327,7 +456,8 @@ api!(
     NeonAesCcm256,
     X64AesCcm256,
     crate::aes::AES_256_KEY_LEN,
-    crate::TAG_LEN
+    crate::TAG_LEN,
+    CCM_AAD_BOUNDARY
 );
 
 api!(
@@ -338,7 +468,8 @@ api!(
     NeonAesCcm128ShortTag,
     X64AesCcm128ShortTag,
     crate::aes::AES_128_KEY_LEN,
-    crate::CCM_SHORT_TAG_LEN
+    crate::CCM_SHORT_TAG_LEN,
+    CCM_AAD_BOUNDARY
 );
 
 api!(
@@ -349,5 +480,6 @@ api!(
     NeonAesCcm256ShortTag,
     X64AesCcm256ShortTag,
     crate::aes::AES_256_KEY_LEN,
-    crate::CCM_SHORT_TAG_LEN
+    crate::CCM_SHORT_TAG_LEN,
+    CCM_AAD_BOUNDARY
 );

@@ -1117,17 +1117,8 @@ pub(crate) fn encrypt<S: State>(
     ciphertext: &mut [u8],
     tag: &mut [u8],
 ) -> Result<(), EncryptError> {
-    debug_assert!(nonce.len() == NONCE_LEN);
-
-    // plaintext length check
-    if plaintext.len() / crate::aes::AES_BLOCK_LEN >= (u32::MAX - 1) as usize {
-        return Err(EncryptError::PlaintextTooLong);
-    }
-
-    // ensure ciphertext and plaintext have same length
-    if ciphertext.len() != plaintext.len() {
-        return Err(EncryptError::WrongCiphertextLength);
-    }
+    // This should only be reachable via the arrayref trait API which
+    // checks the lengths.
 
     let mut st = S::init(key);
     st.set_nonce(nonce);
@@ -1145,17 +1136,8 @@ pub(crate) fn decrypt<S: State>(
     tag: &[u8],
     plaintext: &mut [u8],
 ) -> Result<(), DecryptError> {
-    debug_assert!(nonce.len() == NONCE_LEN);
-
-    // plaintext length check
-    if plaintext.len() / crate::aes::AES_BLOCK_LEN >= (u32::MAX - 1) as usize {
-        return Err(DecryptError::PlaintextTooLong);
-    }
-
-    // ensure ciphertext and plaintext have same length
-    if ciphertext.len() != plaintext.len() {
-        return Err(DecryptError::WrongPlaintextLength);
-    }
+    // This should only be reachable via the arrayref trait API which
+    // checks the lengths.
 
     let mut st = S::init(key);
     st.set_nonce(nonce);

@@ -190,6 +190,9 @@ macro_rules! ccm_num_keys {
                     current_block[2..8].copy_from_slice(&aad_len.to_be_bytes());
                 }
 
+                // We have checked in the traits API that the AAD
+                // length does not exceed `usize::MAX - 10`, so this
+                // addition should not overflow.
                 if aad_len + aad_len_encoding_len <= AES_BLOCK_LEN {
                     current_block[aad_len_encoding_len..aad_len + aad_len_encoding_len]
                         .copy_from_slice(&aad);
@@ -259,6 +262,9 @@ macro_rules! ccm_num_keys {
                 let mut key_block = [0u8; AES_BLOCK_LEN];
 
                 for i in 0..full_blocks {
+                    // The traits API will reject ciphertexts which
+                    // are longer than `u32::MAX - 2` full blocks
+                    // long, so this cast is safe.
                     self.aes_state.key_block((i + 1) as u32, &mut key_block);
                     let offset = i * AES_BLOCK_LEN;
                     for j in 0..AES_BLOCK_LEN {
