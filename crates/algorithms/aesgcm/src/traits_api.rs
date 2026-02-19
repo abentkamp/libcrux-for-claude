@@ -28,7 +28,7 @@ macro_rules! impl_traits_public_api {
 
 /// Macro to implement the different structs and multiplexing.
 macro_rules! api {
-    ($mod_name:ident, $variant:ident, $multiplexing:ty, $portable:ident, $neon:ident, $x64:ident, $key_len:path, $tag_len:path, $aad_limit: expr) => {
+    ($mod_name:ident, $variant:ident, $multiplexing:ty, $portable:ident, $neon:ident, $x64:ident, $key_len:path, $tag_len:path, $aad_limit: expr, $ptxt_limit: expr) => {
         mod $mod_name {
             use super::*;
             use libcrux_secrets::U8;
@@ -66,8 +66,8 @@ macro_rules! api {
                         aad: &[u8],
                         plaintext: &[u8],
                     ) -> Result<(), EncryptError> {
-                        // plaintext length check, this is a requirement of AES-CTR
-                        if plaintext.len() / crate::aes::AES_BLOCK_LEN >= (u32::MAX - 1) as usize {
+                        // plaintext length check, the first bound is a requirement of AES-CTR, the second is given by the AEAD mode
+                        if plaintext.len() / crate::aes::AES_BLOCK_LEN >= (u32::MAX - 1) as usize || plaintext.len() > $ptxt_limit {
                             return Err(EncryptError::PlaintextTooLong);
                         }
 
@@ -76,8 +76,8 @@ macro_rules! api {
                             return Err(EncryptError::WrongCiphertextLength);
                         }
 
-                        // ensure AAD length is within cipher-specific limit
-                        if aad.len() > usize::MAX - $aad_limit {
+                        // ensure AAD length is within AEAD-mode-specific limit
+                        if aad.len() > $aad_limit {
                             return Err(EncryptError::AadTooLong);
                         }
 
@@ -102,8 +102,8 @@ macro_rules! api {
                         ciphertext: &[u8],
                         tag: &Tag,
                     ) -> Result<(), DecryptError> {
-                        // plaintext length check, this is a requirement of AES-CTR
-                        if ciphertext.len() / crate::aes::AES_BLOCK_LEN >= (u32::MAX - 1) as usize {
+                        // ciphertext length check, the first bound is a requirement of AES-CTR, the second is given by the AEAD mode
+                        if ciphertext.len() / crate::aes::AES_BLOCK_LEN >= (u32::MAX - 1) as usize || plaintext.len() > $ptxt_limit {
                             return Err(DecryptError::PlaintextTooLong);
                         }
 
@@ -112,8 +112,8 @@ macro_rules! api {
                             return Err(DecryptError::WrongPlaintextLength);
                         }
 
-                        // ensure AAD length is within cipher-specific limit
-                        if aad.len() > usize::MAX - $aad_limit {
+                        // ensure AAD length is within AEAD-mode-specific limit
+                        if aad.len() > $aad_limit {
                             return Err(DecryptError::AadTooLong);
                         }
 
@@ -156,8 +156,8 @@ macro_rules! api {
                         aad: &[u8],
                         plaintext: &[u8],
                     ) -> Result<(), EncryptError> {
-                        // plaintext length check, this is a requirement of AES-CTR
-                        if plaintext.len() / crate::aes::AES_BLOCK_LEN >= (u32::MAX - 1) as usize {
+                        // plaintext length check, the first bound is a requirement of AES-CTR, the second is given by the AEAD mode
+                        if plaintext.len() / crate::aes::AES_BLOCK_LEN >= (u32::MAX - 1) as usize || plaintext.len() > $ptxt_limit {
                             return Err(EncryptError::PlaintextTooLong);
                         }
 
@@ -166,8 +166,8 @@ macro_rules! api {
                             return Err(EncryptError::WrongCiphertextLength);
                         }
 
-                        // ensure AAD length is within cipher-specific limit
-                        if aad.len() > usize::MAX - $aad_limit {
+                        // ensure AAD length is within AEAD-mode-specific limit
+                        if aad.len() > $aad_limit {
                             return Err(EncryptError::AadTooLong);
                         }
 
@@ -182,8 +182,8 @@ macro_rules! api {
                         ciphertext: &[u8],
                         tag: &Tag,
                     ) -> Result<(), DecryptError> {
-                        // plaintext length check, this is a requirement of AES-CTR
-                        if ciphertext.len() / crate::aes::AES_BLOCK_LEN >= (u32::MAX - 1) as usize {
+                        // ciphertext length check, the first bound is a requirement of AES-CTR, the second is given by the AEAD mode
+                        if ciphertext.len() / crate::aes::AES_BLOCK_LEN >= (u32::MAX - 1) as usize || plaintext.len() > $ptxt_limit {
                             return Err(DecryptError::PlaintextTooLong);
                         }
 
@@ -192,8 +192,8 @@ macro_rules! api {
                             return Err(DecryptError::WrongPlaintextLength);
                         }
 
-                        // ensure AAD length is within cipher-specific limit
-                        if aad.len() > usize::MAX - $aad_limit {
+                        // ensure AAD length is within AEAD-mode-specific limit
+                        if aad.len() > $aad_limit {
                             return Err(DecryptError::AadTooLong);
                         }
 
@@ -227,8 +227,8 @@ macro_rules! api {
                         aad: &[u8],
                         plaintext: &[u8],
                     ) -> Result<(), EncryptError> {
-                        // plaintext length check, this is a requirement of AES-CTR
-                        if plaintext.len() / crate::aes::AES_BLOCK_LEN >= (u32::MAX - 1) as usize {
+                        // plaintext length check, the first bound is a requirement of AES-CTR, the second is given by the AEAD mode
+                        if plaintext.len() / crate::aes::AES_BLOCK_LEN >= (u32::MAX - 1) as usize || plaintext.len() > $ptxt_limit {
                             return Err(EncryptError::PlaintextTooLong);
                         }
 
@@ -237,8 +237,8 @@ macro_rules! api {
                             return Err(EncryptError::WrongCiphertextLength);
                         }
 
-                        // ensure AAD length is within cipher-specific limit
-                        if aad.len() > usize::MAX - $aad_limit {
+                        // ensure AAD length is within AEAD-mode-specific limit
+                        if aad.len() > $aad_limit {
                             return Err(EncryptError::AadTooLong);
                         }
 
@@ -253,8 +253,8 @@ macro_rules! api {
                         ciphertext: &[u8],
                         tag: &Tag,
                     ) -> Result<(), DecryptError> {
-                        // plaintext length check, this is a requirement of AES-CTR
-                        if ciphertext.len() / crate::aes::AES_BLOCK_LEN >= (u32::MAX - 1) as usize {
+                        // ciphertext length check, the first bound is a requirement of AES-CTR, the second is given by the AEAD mode
+                        if ciphertext.len() / crate::aes::AES_BLOCK_LEN >= (u32::MAX - 1) as usize || plaintext.len() > $ptxt_limit {
                             return Err(DecryptError::PlaintextTooLong);
                         }
 
@@ -263,8 +263,8 @@ macro_rules! api {
                             return Err(DecryptError::WrongPlaintextLength);
                         }
 
-                        // ensure AAD length is within cipher-specific limit
-                        if aad.len() > usize::MAX -  $aad_limit {
+                        // ensure AAD length is within AEAD-mode-specific limit
+                        if aad.len() > $aad_limit {
                             return Err(DecryptError::AadTooLong);
                         }
 
@@ -298,8 +298,8 @@ macro_rules! api {
                         aad: &[u8],
                         plaintext: &[u8],
                     ) -> Result<(), EncryptError> {
-                        // plaintext length check, this is a requirement of AES-CTR
-                        if plaintext.len() / crate::aes::AES_BLOCK_LEN >= (u32::MAX - 1) as usize {
+                        // plaintext length check, the first bound is a requirement of AES-CTR, the second is given by the AEAD mode
+                        if plaintext.len() / crate::aes::AES_BLOCK_LEN >= (u32::MAX - 1) as usize || plaintext.len() > $ptxt_limit {
                             return Err(EncryptError::PlaintextTooLong);
                         }
 
@@ -308,8 +308,8 @@ macro_rules! api {
                             return Err(EncryptError::WrongCiphertextLength);
                         }
 
-                        // ensure AAD length is within cipher-specific limit
-                        if aad.len() > usize::MAX - $aad_limit {
+                        // ensure AAD length is within AEAD-mode-specific limit
+                        if aad.len() > $aad_limit {
                             return Err(EncryptError::AadTooLong);
                         }
 
@@ -324,8 +324,8 @@ macro_rules! api {
                         ciphertext: &[u8],
                         tag: &Tag,
                     ) -> Result<(), DecryptError> {
-                        // plaintext length check, this is a requirement of AES-CTR
-                        if ciphertext.len() / crate::aes::AES_BLOCK_LEN >= (u32::MAX - 1) as usize {
+                        // ciphertext length check, the first bound is a requirement of AES-CTR, the second is given by the AEAD mode
+                        if ciphertext.len() / crate::aes::AES_BLOCK_LEN >= (u32::MAX - 1) as usize || plaintext.len() > $ptxt_limit {
                             return Err(DecryptError::PlaintextTooLong);
                         }
 
@@ -334,8 +334,8 @@ macro_rules! api {
                             return Err(DecryptError::WrongPlaintextLength);
                         }
 
-                        // ensure AAD length is within cipher-specific limit
-                        if aad.len() > usize::MAX - $aad_limit {
+                        // ensure AAD length is within AEAD-mode-specific limit
+                        if aad.len() > $aad_limit {
                             return Err(DecryptError::AadTooLong);
                         }
 
@@ -406,11 +406,23 @@ not_cfg!(
     use crate::implementations::PortableAesCcm256ShortTag as X64AesCcm256ShortTag;
 );
 
-/// AES-GCM allows for AAD to be of size `usize::MAX`.
-const GCM_AAD_BOUNDARY: usize = 0;
+// The following values are taken from RFC 5116.
+
+/// AES-GCM allows for AAD to be 2^61 - 1 octets long.
+const GCM_AAD_MAX_LEN: usize = (1 << 61) - 1;
+
+/// AES-GCM allows the plaintext to be 2^36 - 31 octets long. This is
+/// also the maximum length of the ciphertext for us, since we store
+/// the tag separately.
+const GCM_PTXT_MAX_LEN: usize = (1 << 36) - 31;
 
 /// AES-CCM allows for AAD to be of size `usize::MAX - 10`.
-const CCM_AAD_BOUNDARY: usize = 10;
+const CCM_AAD_MAX_LEN: usize = usize::MAX - 1;
+
+/// AES-CCM allows the plaintext to be 2^36 - 31 octets long. This is
+/// also the maximum length of the ciphertext for us, since we store
+/// the tag separately.
+const CCM_PTXT_MAX_LEN: usize = (1 << 24) - 1;
 
 api!(
     aes128gcm,
@@ -421,7 +433,8 @@ api!(
     X64AesGcm128,
     crate::aes::AES_128_KEY_LEN,
     crate::TAG_LEN,
-    GCM_AAD_BOUNDARY
+    GCM_AAD_MAX_LEN,
+    GCM_PTXT_MAX_LEN
 );
 
 api!(
@@ -433,7 +446,8 @@ api!(
     X64AesGcm256,
     crate::aes::AES_256_KEY_LEN,
     crate::TAG_LEN,
-    GCM_AAD_BOUNDARY
+    GCM_AAD_MAX_LEN,
+    GCM_PTXT_MAX_LEN
 );
 
 api!(
@@ -445,7 +459,8 @@ api!(
     X64AesCcm128,
     crate::aes::AES_128_KEY_LEN,
     crate::TAG_LEN,
-    CCM_AAD_BOUNDARY
+    CCM_AAD_MAX_LEN,
+    CCM_PTXT_MAX_LEN
 );
 
 api!(
@@ -457,7 +472,8 @@ api!(
     X64AesCcm256,
     crate::aes::AES_256_KEY_LEN,
     crate::TAG_LEN,
-    CCM_AAD_BOUNDARY
+    CCM_AAD_MAX_LEN,
+    CCM_PTXT_MAX_LEN
 );
 
 api!(
@@ -469,7 +485,8 @@ api!(
     X64AesCcm128ShortTag,
     crate::aes::AES_128_KEY_LEN,
     crate::CCM_SHORT_TAG_LEN,
-    CCM_AAD_BOUNDARY
+    CCM_AAD_MAX_LEN,
+    CCM_PTXT_MAX_LEN
 );
 
 api!(
@@ -481,5 +498,6 @@ api!(
     X64AesCcm256ShortTag,
     crate::aes::AES_256_KEY_LEN,
     crate::CCM_SHORT_TAG_LEN,
-    CCM_AAD_BOUNDARY
+    CCM_AAD_MAX_LEN,
+    CCM_PTXT_MAX_LEN
 );

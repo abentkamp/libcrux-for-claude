@@ -1,5 +1,4 @@
 //! Implementation of AES-CCM
-
 use crate::{
     aes::{block_cipher, AES_BLOCK_LEN},
     ctr::{AesCcm128CtrContext, AesCcm256CtrContext, AesCtrContext},
@@ -323,15 +322,10 @@ aesccm!(
     AesCcm128_8_State<T>,
     AesCcm128CtrContext,
     16,
-    crate::TAG_LEN
-);
-
-aesccm!(
-    AesCcm256State<T>,
-    AesCcm256CtrContext,
-    32,
     crate::CCM_SHORT_TAG_LEN
 );
+
+aesccm!(AesCcm256State<T>, AesCcm256CtrContext, 32, crate::TAG_LEN);
 aesccm!(
     AesCcm256_8_State<T>,
     AesCcm256CtrContext,
