@@ -26,7 +26,7 @@ impl<T: AESState, const CTR_LEN: usize, const NONCE_START: usize>
     pub(crate) fn init(key: &[u8], nonce: &[u8]) -> Self {
         debug_assert_eq!(nonce.len(), NONCE_LEN);
         debug_assert_eq!(key.len(), 32);
-        debug_assert!(CTR_LEN <= 8);
+        debug_assert!(CTR_LEN <= 8 && CTR_LEN > 1);
 
         let mut ctr_nonce = [0u8; 16];
         if NONCE_START == 1 {
