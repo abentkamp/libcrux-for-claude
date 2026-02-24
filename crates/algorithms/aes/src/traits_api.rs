@@ -7,7 +7,40 @@ use crate::{
     NONCE_LEN,
 };
 
-use libcrux_traits::aead::{arrayref, consts, slice, typed_owned};
+use libcrux_traits::aead::{
+    arrayref::{self, DecryptError, EncryptError},
+    consts, slice, typed_owned,
+};
+
+/// Internal error type for length checks
+enum LengthError {
+    /// The plaintext or ciphertext lengths exceed the AEAD-mode's limit
+    PlaintextCiphertextTooLong,
+    /// The AAD length exceeds the AEAD-modes's limit
+    AadTooLong,
+    /// The plaintext and ciphertext buffer lengths disagree
+    LengthMismatch,
+}
+
+impl From<LengthError> for EncryptError {
+    fn from(value: LengthError) -> Self {
+        match value {
+            LengthError::PlaintextCiphertextTooLong => EncryptError::PlaintextTooLong,
+            LengthError::AadTooLong => EncryptError::AadTooLong,
+            LengthError::LengthMismatch => EncryptError::WrongCiphertextLength,
+        }
+    }
+}
+
+impl From<LengthError> for DecryptError {
+    fn from(value: LengthError) -> Self {
+        match value {
+            LengthError::PlaintextCiphertextTooLong => DecryptError::PlaintextTooLong,
+            LengthError::AadTooLong => DecryptError::AadTooLong,
+            LengthError::LengthMismatch => DecryptError::WrongPlaintextLength,
+        }
+    }
+}
 
 /// Macro to implement the libcrux_traits public API traits
 ///
@@ -42,6 +75,34 @@ macro_rules! api {
             pub type Tag = [u8; TAG_LEN];
             pub type Nonce = [u8; NONCE_LEN];
 
+            /// Check that AAD and plaintext are within AEAD-mode
+            /// specific limits, and that plaintext and ciphertext
+            /// buffer lengths agree.
+            fn length_check(ciphertext: &[u8], plaintext: &[u8], aad: &[u8]) -> Result<(), LengthError> {
+                // plaintext length check
+                // AES-CTR has an internal bound of
+                //
+                // (2^32 - 1) * 128,
+                //
+                // but that is higher than either of the limits for of GCM (2^36 - 32) or
+                // CCM (2^24 - 1).
+                if plaintext.len() > $ptxt_limit {
+                    return Err(LengthError::PlaintextCiphertextTooLong);
+                }
+
+                // ensure ciphertext and plaintext have same length
+                if ciphertext.len() != plaintext.len() {
+                    return Err(LengthError::LengthMismatch);
+                }
+
+                // ensure AAD length is within AEAD-mode-specific limit
+                if aad.len() > $aad_limit {
+                    return Err(LengthError::AadTooLong);
+                }
+
+                Ok(())
+            }
+
             mod _libcrux_traits_apis_multiplex {
                 use super::*;
 
@@ -66,26 +127,7 @@ macro_rules! api {
                         aad: &[u8],
                         plaintext: &[u8],
                     ) -> Result<(), EncryptError> {
-                        // plaintext length check
-                        // AES-CTR has an internal bound of
-                        //
-                        // (2^32 - 1) * 128,
-                        //
-                        // but that is higher than either of the limits for of GCM (2^36 - 32) or
-                        // CCM (2^24 - 1).
-                        if plaintext.len() > $ptxt_limit {
-                            return Err(EncryptError::PlaintextTooLong);
-                        }
-
-                        // ensure ciphertext and plaintext have same length
-                        if ciphertext.len() != plaintext.len() {
-                            return Err(EncryptError::WrongCiphertextLength);
-                        }
-
-                        // ensure AAD length is within AEAD-mode-specific limit
-                        if aad.len() > $aad_limit {
-                            return Err(EncryptError::AadTooLong);
-                        }
+                        length_check(ciphertext, plaintext, aad)?;
 
                         // SIMD256 needs to come first because SIMD128 is true for
                         // x64 as well, but we don't actually implement it.
@@ -108,26 +150,7 @@ macro_rules! api {
                         ciphertext: &[u8],
                         tag: &Tag,
                     ) -> Result<(), DecryptError> {
-                        // ciphertext/plaintext length check
-                        // AES-CTR has an internal bound of
-                        //
-                        // (2^32 - 1) * 128,
-                        //
-                        // but that is higher than either of the limits for of GCM (2^36 - 32) or
-                        // CCM (2^24 - 1).
-                        if plaintext.len() > $ptxt_limit {
-                            return Err(DecryptError::PlaintextTooLong);
-                        }
-
-                        // ensure ciphertext and plaintext have same length
-                        if ciphertext.len() != plaintext.len() {
-                            return Err(DecryptError::WrongPlaintextLength);
-                        }
-
-                        // ensure AAD length is within AEAD-mode-specific limit
-                        if aad.len() > $aad_limit {
-                            return Err(DecryptError::AadTooLong);
-                        }
+                        length_check(ciphertext, plaintext, aad)?;
 
                         // SIMD256 needs to come first because SIMD128 is true for
                         // x64 as well, but we don't actually implement it.
@@ -168,26 +191,7 @@ macro_rules! api {
                         aad: &[u8],
                         plaintext: &[u8],
                     ) -> Result<(), EncryptError> {
-                        // plaintext length check
-                        // AES-CTR has an internal bound of
-                        //
-                        // (2^32 - 1) * 128,
-                        //
-                        // but that is higher than either of the limits for of GCM (2^36 - 32) or
-                        // CCM (2^24 - 1).
-                        if plaintext.len() > $ptxt_limit {
-                            return Err(EncryptError::PlaintextTooLong);
-                        }
-
-                        // ensure ciphertext and plaintext have same length
-                        if ciphertext.len() != plaintext.len() {
-                            return Err(EncryptError::WrongCiphertextLength);
-                        }
-
-                        // ensure AAD length is within AEAD-mode-specific limit
-                        if aad.len() > $aad_limit {
-                            return Err(EncryptError::AadTooLong);
-                        }
+                        length_check(ciphertext, plaintext, aad)?;
 
                         crate::portable::$variant::encrypt(key, nonce, aad, plaintext, ciphertext, tag)
                     }
@@ -200,26 +204,7 @@ macro_rules! api {
                         ciphertext: &[u8],
                         tag: &Tag,
                     ) -> Result<(), DecryptError> {
-                        // ciphertext/plaintext length check
-                        // AES-CTR has an internal bound of
-                        //
-                        // (2^32 - 1) * 128,
-                        //
-                        // but that is higher than either of the limits for of GCM (2^36 - 32) or
-                        // CCM (2^24 - 1).
-                        if plaintext.len() > $ptxt_limit {
-                            return Err(DecryptError::PlaintextTooLong);
-                        }
-
-                        // ensure ciphertext and plaintext have same length
-                        if ciphertext.len() != plaintext.len() {
-                            return Err(DecryptError::WrongPlaintextLength);
-                        }
-
-                        // ensure AAD length is within AEAD-mode-specific limit
-                        if aad.len() > $aad_limit {
-                            return Err(DecryptError::AadTooLong);
-                        }
+                        length_check(ciphertext, plaintext, aad)?;
 
                         crate::portable::$variant::decrypt(key, nonce, aad, ciphertext, tag, plaintext)
                     }
@@ -251,26 +236,7 @@ macro_rules! api {
                         aad: &[u8],
                         plaintext: &[u8],
                     ) -> Result<(), EncryptError> {
-                        // plaintext length check
-                        // AES-CTR has an internal bound of
-                        //
-                        // (2^32 - 1) * 128,
-                        //
-                        // but that is higher than either of the limits for of GCM (2^36 - 32) or
-                        // CCM (2^24 - 1).
-                        if plaintext.len() > $ptxt_limit {
-                            return Err(EncryptError::PlaintextTooLong);
-                        }
-
-                        // ensure ciphertext and plaintext have same length
-                        if ciphertext.len() != plaintext.len() {
-                            return Err(EncryptError::WrongCiphertextLength);
-                        }
-
-                        // ensure AAD length is within AEAD-mode-specific limit
-                        if aad.len() > $aad_limit {
-                            return Err(EncryptError::AadTooLong);
-                        }
+                        length_check(ciphertext, plaintext, aad)?;
 
                         crate::neon::$variant::encrypt(key, nonce, aad, plaintext, ciphertext, tag)
                     }
@@ -283,26 +249,7 @@ macro_rules! api {
                         ciphertext: &[u8],
                         tag: &Tag,
                     ) -> Result<(), DecryptError> {
-                        // ciphertext/plaintext length check
-                        // AES-CTR has an internal bound of
-                        //
-                        // (2^32 - 1) * 128,
-                        //
-                        // but that is higher than either of the limits for of GCM (2^36 - 32) or
-                        // CCM (2^24 - 1).
-                        if plaintext.len() > $ptxt_limit {
-                            return Err(DecryptError::PlaintextTooLong);
-                        }
-
-                        // ensure ciphertext and plaintext have same length
-                        if ciphertext.len() != plaintext.len() {
-                            return Err(DecryptError::WrongPlaintextLength);
-                        }
-
-                        // ensure AAD length is within AEAD-mode-specific limit
-                        if aad.len() > $aad_limit {
-                            return Err(DecryptError::AadTooLong);
-                        }
+                        length_check(ciphertext, plaintext, aad)?;
 
                         crate::neon::$variant::decrypt(key, nonce, aad, ciphertext, tag, plaintext)
                     }
@@ -334,26 +281,7 @@ macro_rules! api {
                         aad: &[u8],
                         plaintext: &[u8],
                     ) -> Result<(), EncryptError> {
-                        // plaintext length check
-                        // AES-CTR has an internal bound of
-                        //
-                        // (2^32 - 1) * 128,
-                        //
-                        // but that is higher than either of the limits for of GCM (2^36 - 32) or
-                        // CCM (2^24 - 1).
-                        if plaintext.len() > $ptxt_limit {
-                            return Err(EncryptError::PlaintextTooLong);
-                        }
-
-                        // ensure ciphertext and plaintext have same length
-                        if ciphertext.len() != plaintext.len() {
-                            return Err(EncryptError::WrongCiphertextLength);
-                        }
-
-                        // ensure AAD length is within AEAD-mode-specific limit
-                        if aad.len() > $aad_limit {
-                            return Err(EncryptError::AadTooLong);
-                        }
+                        length_check(ciphertext, plaintext, aad)?;
 
                         crate::x64::$variant::encrypt(key, nonce, aad, plaintext, ciphertext, tag)
                     }
@@ -366,26 +294,7 @@ macro_rules! api {
                         ciphertext: &[u8],
                         tag: &Tag,
                     ) -> Result<(), DecryptError> {
-                        // ciphertext/plaintext length check
-                        // AES-CTR has an internal bound of
-                        //
-                        // (2^32 - 1) * 128,
-                        //
-                        // but that is higher than either of the limits for of GCM (2^36 - 32) or
-                        // CCM (2^24 - 1).
-                        if plaintext.len() > $ptxt_limit {
-                            return Err(DecryptError::PlaintextTooLong);
-                        }
-
-                        // ensure ciphertext and plaintext have same length
-                        if ciphertext.len() != plaintext.len() {
-                            return Err(DecryptError::WrongPlaintextLength);
-                        }
-
-                        // ensure AAD length is within AEAD-mode-specific limit
-                        if aad.len() > $aad_limit {
-                            return Err(DecryptError::AadTooLong);
-                        }
+                        length_check(ciphertext, plaintext, aad)?;
 
                         crate::x64::$variant::decrypt(key, nonce, aad, ciphertext, tag, plaintext)
                     }
