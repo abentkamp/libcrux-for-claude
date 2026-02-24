@@ -1150,7 +1150,7 @@ pub(crate) mod implementations {
 /// Tag length.
 pub const TAG_LEN: usize = 16;
 
-/// Reduced tag length for AES-CCM, as per RFC 6655.
+/// Reduced tag length for AES-CCM, as per [RFC 6655](https://datatracker.ietf.org/doc/html/rfc6655).
 pub const CCM_SHORT_TAG_LEN: usize = 8;
 
 /// Nonce length.
