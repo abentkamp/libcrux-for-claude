@@ -99,7 +99,7 @@ class extractAction(argparse.Action):
             env=hax_env,
         )
 
-        # Extract libcrux-aesgcm
+        # Extract libcrux-aes
         includes = [
             "+**",
             "-libcrux_aes::traits_api::**",
