@@ -218,7 +218,7 @@ macro_rules! ccm_num_keys {
                     aad_len_encoding_len = 10;
                     current_block[0] = 0xff;
                     current_block[1] = 0xff;
-                    current_block[2..11].copy_from_slice(&aad_len.to_be_bytes());
+                    current_block[2..10].copy_from_slice(&aad_len.to_be_bytes());
                 }
 
                 // We have checked in the traits API that the AAD
