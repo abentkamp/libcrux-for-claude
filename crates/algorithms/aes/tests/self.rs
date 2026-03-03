@@ -1,7 +1,7 @@
 use libcrux_aes::{
     aes_ccm_128::{Key as Ccm128Key, Nonce as Ccm128Nonce, Tag as Ccm128Tag},
     aes_gcm_128::{Key as Gcm128Key, Nonce as Gcm128Nonce, Tag as Gcm128Tag},
-    AesGcm128,
+    Aead, AeadConsts, AesGcm128,
 };
 
 // tests that an error is returned if ptxt.len() != ctxt.len()
@@ -110,4 +110,33 @@ fn ccm_ten_byte_aad_len_encoding() {
         .unwrap();
 
     assert_eq!(pt, pt_decrypted);
+}
+
+#[test]
+fn ccm_nist_kat() {
+    use libcrux_aes::aes_ccm_128::short_tag::{AesCcm128ShortTag, Key, Nonce, Tag};
+
+    let k: [u8; AesCcm128ShortTag::KEY_LEN] = hex::decode("404142434445464748494a4b4c4d4e4f")
+        .unwrap()
+        .try_into()
+        .unwrap();
+    let k: Key = k.into();
+    let nonce: [u8; AesCcm128ShortTag::NONCE_LEN] = hex::decode("101112131415161718191a1b")
+        .unwrap()
+        .try_into()
+        .unwrap();
+    let nonce: Nonce = nonce.into();
+
+    let mut tag: Tag = [0; AesCcm128ShortTag::TAG_LEN].into();
+
+    let aad = hex::decode("000102030405060708090a0b0c0d0e0f10111213").unwrap();
+    let pt = hex::decode("202122232425262728292a2b2c2d2e2f3031323334353637").unwrap();
+    let mut ct = pt.clone();
+    k.encrypt(&mut ct, &mut tag, &nonce, &aad, &pt).unwrap();
+
+    let ct_expected =
+        hex::decode("e3b201a9f5b71a7a9b1ceaeccd97e70b6176aad9a4428aa5484392fbc1b09951").unwrap();
+
+    assert_eq!(ct, ct_expected[..ct_expected.len() - 8]);
+    assert_eq!(tag.as_ref(), &ct_expected[ct_expected.len() - 8..]);
 }
