@@ -1,11 +1,12 @@
 //! Implementation of AES-CCM
+use core::ops::Range;
+
 use crate::{
     aes::{block_cipher, AES_BLOCK_LEN},
     ctr::{AesCcm128CtrContext, AesCcm256CtrContext, AesCtrContext},
     platform::AESState,
     DecryptError, CCM_SHORT_TAG_LEN, NONCE_LEN, TAG_LEN,
 };
-use core::ops::Range;
 
 const TWO_BYTE_ENCODING_RANGE: Range<usize> = 0..(1 << 16) - (1 << 8);
 #[cfg(target_pointer_width = "64")]
@@ -18,7 +19,7 @@ const TEN_BYTE_ENCODING_RANGE: Range<usize> = (1 << 32)..usize::MAX;
 /// Macro to instantiate the AES-CCM state.
 /// This should really be replaced by using traits everywhere.
 macro_rules! aesccm {
-    ($state:ty, $ctr_context:ident, $key_len:literal, $tag_len: expr) => {
+    ($state:ty, $ctr_context:ident, $key_len:literal, $tag_len:expr) => {
         impl<T: AESState> super::State for $state {
             /// Initialize the state, internally expanding subkeys for
             /// AES block cipher.
@@ -123,7 +124,8 @@ pub(crate) const AES_CCM_CTR_LEN: usize = 3;
 pub(crate) struct State<const TAG_LEN: usize, const NUM_KEYS: usize, T: AESState> {
     /// Internal AES-CTR state for encryption/decryption.
     pub(crate) aes_state: AesCtrContext<T, NUM_KEYS, AES_CCM_CTR_LEN, 1>,
-    /// Internal state for accumulating the authentication tag from AAD and message.
+    /// Internal state for accumulating the authentication tag from AAD and
+    /// message.
     pub(crate) accumulator: [u8; AES_BLOCK_LEN],
 }
 
