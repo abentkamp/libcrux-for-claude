@@ -42,13 +42,14 @@ jobs:
       - uses: hacspec/hax-actions@main
         with:
           hax_reference: ${{ github.event.inputs.hax_ref || needs.get-hax-ref.outputs.hax_ref }}
+          fstar: v2025.02.17
 
       - name: 🏃 Extract SHA3 crate
         working-directory: crates/algorithms/sha3
         run: ./hax.py extract
 
       - name: ↑ Upload F* extraction (standard)
-        uses: actions/upload-artifact@v7
+        uses: actions/upload-artifact@v5
         with:
           name: fstar-extractions-standard
           path: "**/proofs/fstar"
@@ -66,14 +67,14 @@ jobs:
       - uses: hacspec/hax-actions@main
         with:
           hax_reference: ${{ github.event.inputs.hax_ref || needs.get-hax-ref.outputs.hax_ref }}
-          fstar: v2025.12.15
+          fstar: v2025.02.17
 
       - name: 🏃 Extract SHA3 crate (portable)
         working-directory: crates/algorithms/sha3
         run: ./hax.py extract --portable
 
       - name: ↑ Upload F* extraction (portable)
-        uses: actions/upload-artifact@v7
+        uses: actions/upload-artifact@v5
         with:
           name: fstar-extractions-portable
           path: "**/proofs/fstar"
@@ -91,9 +92,9 @@ jobs:
       - uses: hacspec/hax-actions@main
         with:
           hax_reference: ${{ github.event.inputs.hax_ref || needs.get-hax-ref.outputs.hax_ref }}
-          fstar: v2025.12.15
+          fstar: v2025.02.17
 
-      - uses: actions/download-artifact@v8
+      - uses: actions/download-artifact@v7
         with:
           name: fstar-extractions-portable
           path: .
