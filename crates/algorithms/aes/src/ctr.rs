@@ -51,7 +51,7 @@ impl<T: AESState, const NUM_KEYS: usize, const CTR_LEN: usize, const NONCE_START
     }
 
     #[inline]
-    fn aes_ctr_key_block(&self, ctr: u32, out: &mut [u8]) {
+    pub(crate) fn aes_ctr_key_block(&self, ctr: u32, out: &mut [u8]) {
         debug_assert!(out.len() == AES_BLOCK_LEN);
 
         let mut st_init = self.ctr_nonce;
