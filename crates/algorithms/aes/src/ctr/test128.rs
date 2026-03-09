@@ -1,9 +1,11 @@
 use crate::{
     aes_gcm_128::GCM_KEY_LEN,
-    ctr::AesGcm128CtrContext,
+    ctr::{AesCtrContext, AES_GCM_CTR_LEN, AES_GCM_NONCE_START},
     platform::{self, AESState},
     NONCE_LEN,
 };
+
+type AesGcm128CtrContext<T> = AesCtrContext<T, 11, AES_GCM_CTR_LEN, AES_GCM_NONCE_START>;
 
 pub(crate) fn aes128_ctr_xor_block<T: AESState>(
     ctx: &AesGcm128CtrContext<T>,

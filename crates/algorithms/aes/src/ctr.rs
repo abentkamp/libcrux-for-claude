@@ -13,9 +13,6 @@ mod test128;
 mod aes128_ctr;
 mod aes256_ctr;
 
-pub(crate) use aes128_ctr::*;
-pub(crate) use aes256_ctr::*;
-
 /// The ctr nonce length. This is different from the AES nonce length
 /// [`crate::NONCE_LEN`].
 const CTR_NONCE_LEN: usize = 16;
@@ -128,4 +125,11 @@ impl<T: AESState, const NUM_KEYS: usize, const CTR_LEN: usize, const NONCE_START
 /// Implemented for AES-128 (`NUM_KEYS = 11`) and AES-256 (`NUM_KEYS = 15`).
 pub(crate) trait CcmInit: Sized {
     fn ccm_init(key: &[u8]) -> Self;
+}
+
+/// Trait for constructing an [`AesCtrContext`] from a GCM key.
+///
+/// Implemented for AES-128 (`NUM_KEYS = 11`) and AES-256 (`NUM_KEYS = 15`).
+pub(crate) trait GcmInit: Sized {
+    fn gcm_init(key: &[u8]) -> Self;
 }
