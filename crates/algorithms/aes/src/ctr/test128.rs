@@ -26,7 +26,7 @@ pub(crate) fn aes128_ctr_encrypt<T: AESState>(
     debug_assert!(key.len() == GCM_KEY_LEN);
     debug_assert!(inp.len() == out.len());
     let ctx = AesGcm128CtrContext::<T>::init(key, nonce);
-    ctx.update(ctr, inp, out);
+    ctx.aes_ctr_update(ctr, inp, out);
 }
 
 const INPUT: [u8; 32] = [

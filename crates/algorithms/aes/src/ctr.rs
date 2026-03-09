@@ -44,7 +44,7 @@ impl<T: AESState, const NUM_KEYS: usize, const CTR_LEN: usize, const NONCE_START
     AesCtrContext<T, NUM_KEYS, CTR_LEN, NONCE_START>
 {
     #[inline]
-    fn aes_ctr_set_nonce(&mut self, nonce: &[u8]) {
+    pub(crate) fn aes_ctr_set_nonce(&mut self, nonce: &[u8]) {
         debug_assert!(nonce.len() == crate::NONCE_LEN);
 
         self.ctr_nonce[NONCE_START..crate::NONCE_LEN + NONCE_START].copy_from_slice(nonce);
@@ -101,7 +101,7 @@ impl<T: AESState, const NUM_KEYS: usize, const CTR_LEN: usize, const NONCE_START
     }
 
     #[inline]
-    fn aes_ctr_update(&self, ctr: u32, input: &[u8], out: &mut [u8]) {
+    pub(crate) fn aes_ctr_update(&self, ctr: u32, input: &[u8], out: &mut [u8]) {
         debug_assert!(input.len() == out.len());
         debug_assert!(input.len() / AES_BLOCK_LEN < u32::MAX as usize);
 
@@ -121,4 +121,11 @@ impl<T: AESState, const NUM_KEYS: usize, const CTR_LEN: usize, const NONCE_START
             );
         }
     }
+}
+
+/// Trait for constructing an [`AesCtrContext`] from a CCM key.
+///
+/// Implemented for AES-128 (`NUM_KEYS = 11`) and AES-256 (`NUM_KEYS = 15`).
+pub(crate) trait CcmInit: Sized {
+    fn ccm_init(key: &[u8]) -> Self;
 }

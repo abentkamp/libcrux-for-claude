@@ -3,7 +3,7 @@ use core::ops::Range;
 
 use crate::{
     aes::{block_cipher, AES_BLOCK_LEN},
-    ctr::{AesCcm128CtrContext, AesCcm256CtrContext, AesCtrContext},
+    ctr::{AesCtrContext, CcmInit},
     platform::AESState,
     DecryptError, CCM_SHORT_TAG_LEN, NONCE_LEN, TAG_LEN,
 };
@@ -16,104 +16,98 @@ const SIX_BYTE_ENCODING_RANGE: Range<usize> = (1 << 16) - (1 << 8)..usize::MAX;
 #[cfg(target_pointer_width = "64")]
 const TEN_BYTE_ENCODING_RANGE: Range<usize> = (1 << 32)..usize::MAX;
 
-/// Macro to instantiate the AES-CCM state.
-/// This should really be replaced by using traits everywhere.
-macro_rules! aesccm {
-    ($state:ty, $ctr_context:ident, $key_len:literal, $tag_len:expr) => {
-        impl<T: AESState> super::State for $state {
-            /// Initialize the state, internally expanding subkeys for
-            /// AES block cipher.
-            fn init(key: &[u8]) -> Self {
-                debug_assert!(key.len() == $key_len);
-
-                let nonce = [0u8; NONCE_LEN];
-                let accumulator = [0u8; AES_BLOCK_LEN];
-
-                let aes_state = $ctr_context::<T>::init(key, &nonce);
-
-                Self {
-                    aes_state,
-                    accumulator,
-                }
-            }
-
-            /// Set the nonce for the AES-CTR and authentication
-            /// states.
-            fn set_nonce(&mut self, nonce: &[u8]) {
-                debug_assert!(nonce.len() == NONCE_LEN);
-
-                self.aes_state.set_nonce(nonce);
-                self.accumulator[1..1 + NONCE_LEN].copy_from_slice(nonce);
-            }
-
-            /// Encrypt and authenticate AAD and plaintext.
-            fn encrypt(
-                &mut self,
-                aad: &[u8],
-                plaintext: &[u8],
-                ciphertext: &mut [u8],
-                tag: &mut [u8],
-            ) {
-                debug_assert_eq!(tag.len(), $tag_len);
-                let mut tag_block = [0u8; AES_BLOCK_LEN];
-
-                // fill accumulator with CBC-MAC of AAD and plaintext
-                self.ccm_update_aad(aad, plaintext.len());
-                self.ccm_update_plaintext(plaintext);
-
-                // xor first key block to CBC-MAC
-                self.aes_state.update(0, &self.accumulator, &mut tag_block);
-
-                // encrypt plaintext
-                self.aes_state.update(1, plaintext, ciphertext);
-
-                // write out tag
-                tag.copy_from_slice(&tag_block[..$tag_len]);
-            }
-
-            /// Verify authentication tag, and if valid decrypt
-            /// plaintext from ciphertext.
-            fn decrypt(
-                &mut self,
-                aad: &[u8],
-                ciphertext: &[u8],
-                tag: &[u8],
-                plaintext: &mut [u8],
-            ) -> Result<(), DecryptError> {
-                debug_assert_eq!(tag.len(), $tag_len);
-                let mut tag_block = [0u8; AES_BLOCK_LEN];
-
-                // Feed accumulator with AAD.
-                self.ccm_update_aad(aad, ciphertext.len());
-                // Feed accumulator with ciphertext blocks.
-                //
-                // This decrypts ciphertext blocks on the fly
-                // internally to accumulate decrypted plaintext blocks
-                // into the candidate CBC-MAC without prematurely
-                // writing out an unauthenticated decryption to the
-                // output buffer.
-                self.ccm_update_ciphertext(ciphertext);
-
-                // xor first key block to CBC-MAC
-                self.aes_state.update(0, &self.accumulator, &mut tag_block);
-
-                // Check that recomputed tag in accumulator agrees
-                // with provided tag.
-                let mut eq_mask = 0u8;
-                for i in 0..$tag_len {
-                    eq_mask |= (tag_block[i] ^ tag[i]);
-                }
-
-                if eq_mask != 0 {
-                    return Err(DecryptError::InvalidTag);
-                }
-
-                // Decrypt and write out plaintext if tag was valid.
-                self.aes_state.update(1, ciphertext, plaintext);
-                Ok(())
-            }
+impl<const TAG_LEN: usize, const NUM_KEYS: usize, T: AESState> super::State
+    for State<TAG_LEN, NUM_KEYS, T>
+where
+    AesCtrContext<
+        T,
+        NUM_KEYS,
+        { crate::ctr::AES_CCM_CTR_LEN },
+        { crate::ctr::AES_CCM_NONCE_START },
+    >: CcmInit,
+{
+    /// Initialize the state, internally expanding subkeys for
+    /// AES block cipher.
+    fn init(key: &[u8]) -> Self {
+        let accumulator = [0u8; AES_BLOCK_LEN];
+        let aes_state = AesCtrContext::ccm_init(key);
+        Self {
+            aes_state,
+            accumulator,
         }
-    };
+    }
+
+    /// Set the nonce for the AES-CTR and authentication
+    /// states.
+    fn set_nonce(&mut self, nonce: &[u8]) {
+        debug_assert!(nonce.len() == NONCE_LEN);
+
+        self.aes_state.aes_ctr_set_nonce(nonce);
+        self.accumulator[1..1 + NONCE_LEN].copy_from_slice(nonce);
+    }
+
+    /// Encrypt and authenticate AAD and plaintext.
+    fn encrypt(&mut self, aad: &[u8], plaintext: &[u8], ciphertext: &mut [u8], tag: &mut [u8]) {
+        debug_assert_eq!(tag.len(), TAG_LEN);
+        let mut tag_block = [0u8; AES_BLOCK_LEN];
+
+        // fill accumulator with CBC-MAC of AAD and plaintext
+        self.ccm_update_aad(aad, plaintext.len());
+        self.ccm_update_plaintext(plaintext);
+
+        // xor first key block to CBC-MAC
+        self.aes_state
+            .aes_ctr_update(0, &self.accumulator, &mut tag_block);
+
+        // encrypt plaintext
+        self.aes_state.aes_ctr_update(1, plaintext, ciphertext);
+
+        // write out tag
+        tag.copy_from_slice(&tag_block[..TAG_LEN]);
+    }
+
+    /// Verify authentication tag, and if valid decrypt
+    /// plaintext from ciphertext.
+    fn decrypt(
+        &mut self,
+        aad: &[u8],
+        ciphertext: &[u8],
+        tag: &[u8],
+        plaintext: &mut [u8],
+    ) -> Result<(), DecryptError> {
+        debug_assert_eq!(tag.len(), TAG_LEN);
+        let mut tag_block = [0u8; AES_BLOCK_LEN];
+
+        // Feed accumulator with AAD.
+        self.ccm_update_aad(aad, ciphertext.len());
+        // Feed accumulator with ciphertext blocks.
+        //
+        // This decrypts ciphertext blocks on the fly
+        // internally to accumulate decrypted plaintext blocks
+        // into the candidate CBC-MAC without prematurely
+        // writing out an unauthenticated decryption to the
+        // output buffer.
+        self.ccm_update_ciphertext(ciphertext);
+
+        // xor first key block to CBC-MAC
+        self.aes_state
+            .aes_ctr_update(0, &self.accumulator, &mut tag_block);
+
+        // Check that recomputed tag in accumulator agrees
+        // with provided tag.
+        let mut eq_mask = 0u8;
+        for i in 0..TAG_LEN {
+            eq_mask |= tag_block[i] ^ tag[i];
+        }
+
+        if eq_mask != 0 {
+            return Err(DecryptError::InvalidTag);
+        }
+
+        // Decrypt and write out plaintext if tag was valid.
+        self.aes_state.aes_ctr_update(1, ciphertext, plaintext);
+        Ok(())
+    }
 }
 
 // Length in bytes of the field encoding the message length in bytes.
@@ -348,19 +342,3 @@ pub(crate) type AesCcm128_8_State<T> = State<CCM_SHORT_TAG_LEN, 11, T>;
 pub(crate) type AesCcm256State<T> = State<TAG_LEN, 15, T>;
 #[allow(non_camel_case_types)]
 pub(crate) type AesCcm256_8_State<T> = State<CCM_SHORT_TAG_LEN, 15, T>;
-
-aesccm!(AesCcm128State<T>, AesCcm128CtrContext, 16, crate::TAG_LEN);
-aesccm!(
-    AesCcm128_8_State<T>,
-    AesCcm128CtrContext,
-    16,
-    crate::CCM_SHORT_TAG_LEN
-);
-
-aesccm!(AesCcm256State<T>, AesCcm256CtrContext, 32, crate::TAG_LEN);
-aesccm!(
-    AesCcm256_8_State<T>,
-    AesCcm256CtrContext,
-    32,
-    crate::CCM_SHORT_TAG_LEN
-);

@@ -27,7 +27,7 @@ macro_rules! aesgcm {
             fn set_nonce(&mut self, nonce: &[u8]) {
                 debug_assert!(nonce.len() == NONCE_LEN);
 
-                self.aes_state.set_nonce(nonce);
+                self.aes_state.aes_ctr_set_nonce(nonce);
                 self.aes_state.key_block(1, &mut self.tag_mix);
             }
 
@@ -42,7 +42,7 @@ macro_rules! aesgcm {
                 debug_assert!(plaintext.len() / AES_BLOCK_LEN <= u32::MAX as usize);
                 debug_assert!(tag.len() == TAG_LEN);
 
-                self.aes_state.update(2, plaintext, ciphertext);
+                self.aes_state.aes_ctr_update(2, plaintext, ciphertext);
 
                 self.gcm_state.update_padded(aad);
                 self.gcm_state.update_padded(ciphertext);
@@ -92,7 +92,7 @@ macro_rules! aesgcm {
                 }
 
                 if eq_mask == 0 {
-                    self.aes_state.update(2, ciphertext, plaintext);
+                    self.aes_state.aes_ctr_update(2, ciphertext, plaintext);
                     Ok(())
                 } else {
                     Err(DecryptError::InvalidTag)
