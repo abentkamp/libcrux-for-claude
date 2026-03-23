@@ -20,7 +20,6 @@ fuzz_target!(|data: &[u8]| {
     PortableAesCcm128ShortTag::encrypt(&mut ctxt, &mut tag_bytes, key, nonce, aad, data).unwrap();
 
     let mut roundtrip = vec![0u8; data.len()];
-    PortableAesCcm128ShortTag::decrypt(&mut roundtrip, key, nonce, aad, &ctxt, &tag_bytes)
-        .unwrap();
+    PortableAesCcm128ShortTag::decrypt(&mut roundtrip, key, nonce, aad, &ctxt, &tag_bytes).unwrap();
     assert_eq!(data, roundtrip.as_slice());
 });
