@@ -42,13 +42,14 @@ jobs:
       - uses: hacspec/hax-actions@main
         with:
           hax_reference: ${{ github.event.inputs.hax_ref || needs.get-hax-ref.outputs.hax_ref }}
+          fstar: v2025.03.25
 
       - name: 🏃 Extract ML-DSA crate
         working-directory: libcrux-ml-dsa
         run: ./hax.sh extract
 
       - name: ↑ Upload F* extraction
-        uses: actions/upload-artifact@v7
+        uses: actions/upload-artifact@v5
         with:
           name: fstar-extractions
           path: "**/proofs/fstar"
@@ -66,9 +67,9 @@ jobs:
       - uses: hacspec/hax-actions@main
         with:
           hax_reference: ${{ github.event.inputs.hax_ref || needs.get-hax-ref.outputs.hax_ref }}
-          fstar: v2025.12.15
+          fstar: v2025.03.25
 
-      - uses: actions/download-artifact@v8
+      - uses: actions/download-artifact@v7
         with:
           name: fstar-extractions
           path: .
@@ -94,9 +95,9 @@ jobs:
         run: |
           nix profile install ./hax
       - name: ⤵ Install FStar
-        run: nix profile install github:FStarLang/FStar/v2025.10.06
+        run: nix profile install github:FStarLang/FStar/v2025.02.17
 
-      - uses: actions/download-artifact@v8
+      - uses: actions/download-artifact@v7
         with:
           name: fstar-extractions
           path: .

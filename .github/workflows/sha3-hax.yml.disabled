@@ -32,6 +32,30 @@ jobs:
   get-hax-ref:
     uses: ./.github/workflows/get-hax-ref.yml
 
+  extract:
+    runs-on: ubuntu-latest
+    needs:
+      - get-hax-ref
+
+    steps:
+      - uses: actions/checkout@v6
+      - uses: hacspec/hax-actions@main
+        with:
+          hax_reference: ${{ github.event.inputs.hax_ref || needs.get-hax-ref.outputs.hax_ref }}
+          fstar: v2025.02.17
+
+      - name: 🏃 Extract SHA3 crate
+        working-directory: crates/algorithms/sha3
+        run: ./hax.py extract
+
+      - name: ↑ Upload F* extraction (standard)
+        uses: actions/upload-artifact@v5
+        with:
+          name: fstar-extractions-standard
+          path: "**/proofs/fstar"
+          include-hidden-files: true
+          if-no-files-found: error
+
   extract-portable:
     if: ${{ github.event_name != 'merge_group' }}
     runs-on: ubuntu-latest
@@ -43,14 +67,14 @@ jobs:
       - uses: hacspec/hax-actions@main
         with:
           hax_reference: ${{ github.event.inputs.hax_ref || needs.get-hax-ref.outputs.hax_ref }}
-          fstar: v2025.12.15
+          fstar: v2025.02.17
 
       - name: 🏃 Extract SHA3 crate (portable)
         working-directory: crates/algorithms/sha3
-        run: ./hax.sh extract
+        run: ./hax.py extract --portable
 
-      - name: ↑ Upload F* extraction (standard)
-        uses: actions/upload-artifact@v7
+      - name: ↑ Upload F* extraction (portable)
+        uses: actions/upload-artifact@v5
         with:
           name: fstar-extractions-portable
           path: "**/proofs/fstar"
@@ -68,42 +92,20 @@ jobs:
       - uses: hacspec/hax-actions@main
         with:
           hax_reference: ${{ github.event.inputs.hax_ref || needs.get-hax-ref.outputs.hax_ref }}
-          fstar: v2025.12.15
+          fstar: v2025.02.17
 
-      - uses: actions/download-artifact@v8
+      - uses: actions/download-artifact@v7
         with:
           name: fstar-extractions-portable
           path: .
 
       - name: 🏃 Lax SHA3 crate (portable)
         working-directory: crates/algorithms/sha3
-        run: ./hax.sh prove --admit
-
-  type-check-portable:
-    runs-on: ubuntu-latest
-    needs:
-      - get-hax-ref
-      - extract-portable
-    if: ${{ github.event_name != 'merge_group' }}
-    steps:
-      - uses: actions/checkout@v6
-      - uses: hacspec/hax-actions@main
-        with:
-          hax_reference: ${{ github.event.inputs.hax_ref || needs.get-hax-ref.outputs.hax_ref }}
-          fstar: v2025.02.17
-
-      - uses: actions/download-artifact@v8
-        with:
-          name: fstar-extractions-portable
-          path: .
-
-      - name: 🏃 Full type check SHA3 crate (portable)
-        working-directory: crates/algorithms/sha3
-        run: ./hax.sh prove
+        run: ./hax.py prove --admit
 
   sha3-extract-hax-status:
     if: ${{ always() }}
-    needs: [get-hax-ref, extract-portable]
+    needs: [get-hax-ref, extract]
     runs-on: ubuntu-latest
     steps:
       - name: Successful
@@ -113,9 +115,9 @@ jobs:
         if: ${{ (contains(needs.*.result, 'failure')) }}
         run: exit 1
 
-  sha3-type-check-portable-hax-status:
+  sha3-lax-portable-hax-status:
     if: ${{ always() }}
-    needs: [get-hax-ref, lax-portable, type-check-portable]
+    needs: [get-hax-ref, lax-portable]
     runs-on: ubuntu-latest
     steps:
       - name: Successful
