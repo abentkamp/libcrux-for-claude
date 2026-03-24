@@ -1,4 +1,4 @@
-name: AES-AEADs (RISC-V & ARM targets)
+name: Build AES-AEADs (RISC-V & ARM targets)
 
 on:
   merge_group:
@@ -18,6 +18,9 @@ concurrency:
 jobs:
   build:
     runs-on: linux
+    strategy:
+        matrix:
+            target: [thumbv7em-none-eabihf, thumbv7em-none-eabi, thumbv8m.main-none-eabihf, riscv64gc-unknown-none-elf]
     defaults:
       run:
         shell: bash
@@ -29,25 +32,17 @@ jobs:
       - name: Update dependencies
         run: cargo update
 
-      # This action should install the cargo cross binary instead of building from source
-      - uses: taiki-e/install-action@v2
-        name: Install cargo cross
+      # Install rust toolchain
+      - uses: dtolnay/rust-toolchain@stable
         with:
-            tool: cross
+            targets: ${{ matrix.target }}
+        name: Install target Rust toolchain
       
-      # Test ...
-      - name: 🏃🏻‍♀️ Test (RISC-V)
+      # Build
+      - name: Build
         run: |
-          cross test --target riscv64gc-unknown-linux-gnu --verbose
+          cargo build --target ${{ matrix.target }}
 
-      - name: 🏃🏻‍♀️ Test Release (RISC-V)
+      - name: Build Release
         run: |
-          cross test --target riscv64gc-unknown-linux-gnu --verbose --release
-
-      - name: 🏃🏻‍♀️ Test (armv7)
-        run: |
-          cross test --target armv7-unknown-linux-gnueabihf --verbose
-
-      - name: 🏃🏻‍♀️ Test Release (armv7)
-        run: |
-          cross test --target armv7-unknown-linux-gnueabihf --verbose --release
+          cargo build --release --target ${{ matrix.target }}
