@@ -36,15 +36,6 @@ Then you can run `cargo test` as follows:
 ```sh
 cargo test --config config.toml --target <target>
 ```
-where `config.toml` contains the linker and runner configuration (exact binaries/paths depending on your installation):
-```toml
-[target.riscv64gc-unknown-linux-gnu]
-linker = "riscv64-linux-gnu-gcc"
-runner = "qemu-riscv64-static -L /usr/riscv64-linux-gnu -cpu rv64"
-
-[target.armv7-unknown-linux-gnueabihf]
-linker = "armv7l-unknown-linux-gnueabihf-gcc"
-runner = "qemu-arm -L /usr/arm-unknown-linux-gnueabihf"
-```
+where `config.toml` contains the linker and runner configuration (exact binaries/paths depending on your installation and may have to be adapted).
 
 [pre-verification]: ../../../.assets/pre_verification-orange.svg
