@@ -51,7 +51,7 @@ jobs:
     strategy:
         fail-fast: false
         matrix:
-            targets: [riscv64gc-unknown-linux-gnu, armv7-unknown-linux-gnueabihf]
+            target: [riscv64gc-unknown-linux-gnu, armv7-unknown-linux-gnueabihf]
     runs-on: linux
     defaults:
       run:
