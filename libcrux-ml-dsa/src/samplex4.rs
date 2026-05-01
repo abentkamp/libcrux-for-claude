@@ -8,8 +8,19 @@ use crate::{
 };
 
 /// The x4 sampling implementation that is selected during multiplexing.
+//
+// `requires(true)` matches the `hash_functions` trait pattern: refines
+// the extracted `f_matrix_flat_pre` to `Type0{true ==> pred}` so panic-
+// free callers can discharge it.  The length-preserving ensures lets
+// callers bind the (mutated-via-&mut, returned-by-value-in-F*) `matrix`
+// back to the same fixed-size `[T; ROWS_IN_A * COLUMNS_IN_A]`.
+// TODO: tighten with a coefficient-bound ensures when the NTT-bound
+// chain is closed (Class B sprint).
+#[hax_lib::attributes]
 pub(crate) trait X4Sampler {
     /// Sample the matrix A using platform specific implementation.
+    #[requires(true)]
+    #[ensures(|_| future(matrix).len() == matrix.len())]
     fn matrix_flat<SIMDUnit: Operations>(
         columns: usize,
         seed: &[u8],
@@ -119,6 +130,11 @@ pub(crate) mod avx2 {
 
 // Not inling this causes a 10x slow-down
 #[inline(always)]
+// Length-preserving ensures so callers can rebind the mutated slice
+// back to a fixed-size array.  TODO: extend with a coefficient-bound
+// ensures (`forall i j. abs(s1_s2[i].coefs[j]) <= eta`) when the
+// NTT-bound chain is closed.
+#[hax_lib::ensures(|_| future(s1_s2).len() == s1_s2.len())]
 pub(crate) fn sample_s1_and_s2<SIMDUnit: Operations, Shake256X4: shake256::XofX4>(
     eta: Eta,
     seed: &[u8],
