@@ -330,3 +330,89 @@ without re-shaping the contract.
   lemma's signature to parent.
 - If `--z3rlimit` would have to exceed 800 to discharge a single
   query, stop — that's a structural problem that needs decomposition.
+
+---
+
+## Outcome (postmortem, 2026-05-02)
+
+This sprint partially closed.  Status of the planned work:
+
+| Chain | Outcome | Detail |
+|---|---|---|
+| Chain 1 (NTT-bound, sample.rs / samplex4.rs ensures-only) | ✅ **DONE** | Three commits merged: `ddc7b2dcb` (Cluster A sample.rs), `773e4af84` (Cluster B samplex4.rs), `140702ee2` (status log). cargo test 20/20.  F* check on Sample, Samplex4*, downstream consumers all clean. |
+| Chain 2 (encoding) | ✅ N/A | Audit confirmed already closed at `ad0632490`; no work needed. |
+| Chain 3 (arith / matrix body proofs) | ❌ **BLOCKED** | Both `power2round_vector` and `compute_as1_plus_s2` body proofs hit hax tactic limitations.  Reverted all source changes; only the diagnostic status log committed (`2054c9f15`). |
+| Final flip on `generate_key_pair` | ⏸ **DEFERRED** | Cannot land until at least `compute_as1_plus_s2`'s post tightens to satisfy `power2round_vector`'s pre. |
+
+### Chain 3 diagnostic summary (full detail in `agent-status/agent-arith-bound-status.md`)
+
+* **`power2round_vector`**: dual `&mut [T]` slice access pattern
+  (`&mut t0[i], &mut t1[i]` in a single call to
+  `power2round_one_ring_element`) hits the hax slice-bounds tactic
+  in a way that `add_vectors`-style invariants cannot unblock.  Seven
+  invariant variants tried.  Recommended fix: refactor
+  `power2round_one_ring_element` to take t1 by value and return a
+  tuple (eliminates the dual-mutable pattern).  Independent of
+  Montgomery work.
+* **`compute_as1_plus_s2`**: same hax tactic limitation in inner
+  loop_invariant + post-mismatch resolution.  Recommended fix
+  (cleaner): tighten `invert_ntt_montgomery`'s trait post via the
+  shared-spec piecewise pattern (Montgomery sprint) — once landed,
+  the body's natural post becomes ~q/2 + ε < FIELD_MAX, no
+  in-function reduce needed, body proof simplifies considerably.
+* **Independent review** confirmed BENIGN-TIGHTENING verdict on the
+  proposed in-function reduce: matches PQClean's `polyveck_caddq`
+  step structurally, mod-q-equivalent, KAT-safe.  Empirical
+  saturation probe (1200+ adversarial trials of
+  `montgomery_multiply_by_constant(_, 41_978)`): max output
+  `~q/2 + 21k`, confirming the analytic formula
+  `|result| ≤ q/2 + ⌈|value|/2³²⌉ + 1` from ML-KEM's documented
+  bound at `libcrux-ml-kem/src/vector/portable/arithmetic.rs:343-348`.
+
+### What this sprint produced beyond Chain 1's commits
+
+* Independent review of the proposed source change (verdict + evidence).
+* Empirical saturation probe with `montgomery_mul_const_probe.rs` /
+  `power2round_boundary_probe.rs` (in worktree branches).
+* Comprehensive diagnostic in `agent-status/agent-arith-bound-status.md`.
+* Three USER-followup tasks (now sprint plan items in
+  `handoff-2026-05-02-mont-bound-foundation.md`):
+  1. `power2round_vector` body proof (refactor the helper).
+  2. `compute_as1_plus_s2` body proof (post-Montgomery sprint).
+  3. Montgomery-bound piecewise-tightening sprint.
+* New rule in agent memory: 30–60 min hard cap per function during
+  proof debug; mark and move on.
+
+### What blocked the original plan
+
+The handoff treated body proofs for `compute_as1_plus_s2` and
+`power2round_vector` as "1–1.5 sessions" of work.  Both hit
+**hax tooling edge cases**, not proof-shape edge cases:
+
+1. The hax slice-bounds tactic checks `i < Seq.length <slice>`
+   syntactically against the loop-bound expression.  It does not
+   combine `Seq.length t0 == Seq.length t1` (length-equality fact)
+   with `i < Seq.length t0` (loop bound) to derive
+   `i < Seq.length t1`.  This is fine for single-mutable-slice
+   patterns (`add_vectors`) but breaks dual-mutable-slice patterns
+   (`power2round_vector`).
+2. The same tactic also has trouble with multi-step bound chains
+   in nested loop_invariants (`compute_as1_plus_s2` inner loop's
+   `result[i]` access requires combining outer-loop bound,
+   inner-loop bound, and function-pre length-comparison).
+3. F* extraction side-effects from changes in one function can
+   cascade into Z3 timeouts on previously-verified functions
+   (observed: admitting compute_as1_plus_s2's body with WIP changes
+   caused `add_vectors` query 56 to time out at rlimit 800 even
+   though `add_vectors` was unchanged).
+
+These are **hax-side limitations**, not proof-design problems.
+The Montgomery sprint approach side-steps them by tightening the
+trait-level post upstream, after which the consumer body proofs
+become simpler and dodge the tactic edge cases.
+
+### Where to look next
+
+* `proofs/handoff-2026-05-02-mont-bound-foundation.md` — next sprint plan.
+* `agent-status/agent-arith-bound-status.md` — full diagnostic.
+* `agent-status/agent-ntt-bound-status.md` — Chain 1 detail.
