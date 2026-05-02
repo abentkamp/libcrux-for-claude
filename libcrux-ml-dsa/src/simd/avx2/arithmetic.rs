@@ -56,12 +56,13 @@ pub(super) fn subtract(lhs: &mut Vec256, rhs: &Vec256) {
 // Not using inline always here regresses performance significantly.
 #[inline(always)]
 #[hax_lib::fstar::before(r#"[@@ "opaque_to_smt"]"#)]
+#[hax_lib::fstar::options("--z3rlimit 200")]
 #[hax_lib::ensures(|result| fstar!(r#"
-    forall i. to_i32x8 ${result} i == 
+    forall i. to_i32x8 ${result} i ==
               Spec.MLDSA.Math.mont_mul (to_i32x8 ${lhs} i) $constant
 "#))]
 pub(super) fn montgomery_multiply_by_constant(lhs: Vec256, constant: i32) -> Vec256 {
-    hax_lib::fstar!("reveal_opaque (`%Spec.MLDSA.Math.mont_mul) (Spec.MLDSA.Math.mont_mul)");
+    hax_lib::fstar!("reveal_opaque (`%Spec.MLDSA.Math.mont_red) (Spec.MLDSA.Math.mont_red)");
 
     let rhs = mm256_set1_epi32(constant);
     let field_modulus = mm256_set1_epi32(FIELD_MODULUS);
@@ -89,6 +90,7 @@ pub(super) fn montgomery_multiply_by_constant(lhs: Vec256, constant: i32) -> Vec
 // Not using inline always here regresses performance significantly.
 #[inline(always)]
 #[hax_lib::fstar::before(r#"[@@ "opaque_to_smt"]"#)]
+#[hax_lib::fstar::options("--z3rlimit 200")]
 #[hax_lib::requires(
     hax_lib::eq(field_modulus, mm256_set1_epi32(FIELD_MODULUS)).and(hax_lib::eq(
         inverse_of_modulus_mod_montgomery_r,
@@ -96,7 +98,7 @@ pub(super) fn montgomery_multiply_by_constant(lhs: Vec256, constant: i32) -> Vec
     ))
 )]
 #[hax_lib::ensures(|_| fstar!(r#"
-    forall i. to_i32x8 ${lhs}_future i == 
+    forall i. to_i32x8 ${lhs}_future i ==
               Spec.MLDSA.Math.mont_mul (to_i32x8 ${lhs} i) (to_i32x8 ${rhs} i)
 "#))]
 pub(super) fn montgomery_multiply_aux(
@@ -105,7 +107,7 @@ pub(super) fn montgomery_multiply_aux(
     lhs: &mut Vec256,
     rhs: &Vec256,
 ) {
-    hax_lib::fstar!("reveal_opaque (`%Spec.MLDSA.Math.mont_mul) (Spec.MLDSA.Math.mont_mul)");
+    hax_lib::fstar!("reveal_opaque (`%Spec.MLDSA.Math.mont_red) (Spec.MLDSA.Math.mont_red)");
 
     let prod02 = mm256_mul_epi32(*lhs, *rhs);
     let prod13 = mm256_mul_epi32(

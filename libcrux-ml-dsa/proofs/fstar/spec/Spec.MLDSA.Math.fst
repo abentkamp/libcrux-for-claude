@@ -32,14 +32,25 @@ let mod_q a = a % 8380417
 let i32_mul (x:i32) (y:i32) =
   mul_mod_opaque (cast_mod_opaque x <: i64) (cast_mod_opaque y <: i64)
 
+(* Single-arg Montgomery reduction: mirrors the body of
+   `simd/portable/arithmetic.rs::montgomery_reduce_element`.  Opaque
+   to SMT — callers reveal it where needed, or invoke one of the
+   bound/correctness lemmas defined below to extract specific facts
+   without dragging the full hi/low/k/c arithmetic into the proof
+   context. *)
 [@@ "opaque_to_smt"]
-let mont_mul (x:i32) (y:i32) : i32 =
-  let product : i64 = i32_mul x y in
-  let hi : i32 = cast_mod_opaque (shift_right_opaque product (mk_i32 32)) in
-  let low : i32 = cast_mod_opaque product in
+let mont_red (value:i64) : i32 =
+  let hi : i32 = cast_mod_opaque (shift_right_opaque value (mk_i32 32)) in
+  let low : i32 = cast_mod_opaque value in
   let k : i32 = cast_mod_opaque (i32_mul low (mk_i32 58728449)) in
   let c : i32 = cast_mod_opaque (shift_right_opaque (i32_mul k (mk_i32 8380417)) (mk_i32 32)) in
-  sub_mod_opaque hi c  
+  sub_mod_opaque hi c
+
+(* Two-arg Montgomery multiplication: thin non-opaque wrapper over
+   `mont_red`.  Callers who need to inspect the arithmetic only need
+   to reveal `mont_red`, not `mont_mul` — this keeps the opacity
+   layer at a single level. *)
+let mont_mul (x:i32) (y:i32) : i32 = mont_red (i32_mul x y)
 
 [@@ "opaque_to_smt"]
 let barrett_red (x:i32) : i32 =

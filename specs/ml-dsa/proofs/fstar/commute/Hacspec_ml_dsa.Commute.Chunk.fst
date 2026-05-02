@@ -663,7 +663,10 @@ let lemma_mont_mul_bound_and_mod_q (x y: i32)
   = Spec.Intrinsics.reveal_opaque_arithmetic_ops #i32_inttype;
     Spec.Intrinsics.reveal_opaque_arithmetic_ops #i64_inttype;
     Spec.Intrinsics.reveal_opaque_cast_ops #i32_inttype #i64_inttype;
-    reveal_opaque (`%Spec.MLDSA.Math.mont_mul) (Spec.MLDSA.Math.mont_mul x y);
+    (* Post mont_mul refactor: mont_mul x y == mont_red (i32_mul x y).
+       mont_mul is now non-opaque (unfolds automatically); we reveal
+       mont_red instead to expose hi/low/k/c. *)
+    reveal_opaque (`%Spec.MLDSA.Math.mont_red) (Spec.MLDSA.Math.mont_red);
     reveal_opaque (`%Spec.MLDSA.Math.i32_mul) (Spec.MLDSA.Math.i32_mul);
     let prod : int = v x * v y in
     // Step 1: product = i32_mul x y (i64 with v == prod, since |prod| < pow2 63).
