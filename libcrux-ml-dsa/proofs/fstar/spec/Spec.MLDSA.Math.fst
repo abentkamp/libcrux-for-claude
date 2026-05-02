@@ -124,6 +124,60 @@ let lemma_mont_red_bound_internal (n: nat) (value: i64)
     ()
 #pop-options
 
+(* === Specialized lookup lemmas: bound for `mont_red` at common
+       input magnitudes that occur in the keygen / sign / verify
+       chain.  Each is a one-line derivation from
+       `lemma_mont_red_bound_internal`; callers invoke these by name
+       and don't need to reason about the closed-form
+       `(n + pow2 32 - 1) / pow2 32` arithmetic. *)
+
+(* Input bound: q² = FIELD_MAX² = 8380416² ≈ 7·10¹³.  Common when a
+   product `i32_mul x y` is formed from two FIELD_MAX-bounded i32s. *)
+let lemma_mont_red_bound_q_squared (value: i64)
+    : Lemma
+        (requires Spec.Utils.is_i64b (8380416 * 8380416) value)
+        (ensures Spec.Utils.is_i32b 4206561 (mont_red value))
+  = assert_norm (8380416 * 8380416 <= 8380416 * pow2 32);
+    lemma_mont_red_bound_internal (8380416 * 8380416) value;
+    assert_norm (4190209 + (8380416 * 8380416) / pow2 32 == 4206561)
+
+(* Input bound: FIELD_MAX · 2³¹.  Matches the existing
+   `montgomery_reduce_element` tight-branch shape (input bounded by
+   one i32-arg times an arbitrary i32, so |product| ≤ FIELD_MAX · 2³¹). *)
+let lemma_mont_red_bound_field_max_times_pow2_31 (value: i64)
+    : Lemma
+        (requires Spec.Utils.is_i64b (8380416 * pow2 31) value)
+        (ensures Spec.Utils.is_i32b 8380417 (mont_red value))
+  = assert_norm (8380416 * pow2 31 <= 8380416 * pow2 32);
+    lemma_mont_red_bound_internal (8380416 * pow2 31) value;
+    assert_norm (4190209 + (8380416 * pow2 31) / pow2 32 == 8380417)
+
+(* Input bound: FIELD_MAX · 41978.  Common from per-element
+   `montgomery_multiply_by_constant(_, 41_978)` calls (where one
+   factor is the inverse-2N constant and the other is FIELD_MAX-bounded
+   from a Barrett-reduced NTT input). *)
+let lemma_mont_red_bound_field_max_times_41978 (value: i64)
+    : Lemma
+        (requires Spec.Utils.is_i64b (8380416 * 41978) value)
+        (ensures Spec.Utils.is_i32b 4190290 (mont_red value))
+  = assert_norm (8380416 * 41978 <= 8380416 * pow2 32);
+    lemma_mont_red_bound_internal (8380416 * 41978) value;
+    assert_norm (4190209 + (8380416 * 41978) / pow2 32 == 4190290)
+
+(* Input bound: 256 · FIELD_MAX · 41978.  Specifically the input to
+   the FINAL `montgomery_multiply_by_constant(_, 41_978)` call inside
+   `invert_ntt_montgomery` (where the layered NTT has scaled up to
+   256 · FIELD_MAX before the final scale-back).  This is the bound
+   that propagates out of `invert_ntt_montgomery` and unblocks the
+   `compute_as1_plus_s2` body proof in Sprint 2. *)
+let lemma_mont_red_bound_256_field_max_times_41978 (value: i64)
+    : Lemma
+        (requires Spec.Utils.is_i64b (256 * 8380416 * 41978) value)
+        (ensures Spec.Utils.is_i32b 4211177 (mont_red value))
+  = assert_norm (256 * 8380416 * 41978 <= 8380416 * pow2 32);
+    lemma_mont_red_bound_internal (256 * 8380416 * 41978) value;
+    assert_norm (4190209 + (256 * 8380416 * 41978) / pow2 32 == 4211177)
+
 (* Two-arg Montgomery multiplication: thin non-opaque wrapper over
    `mont_red`.  Callers who need to inspect the arithmetic only need
    to reveal `mont_red`, not `mont_mul` — this keeps the opacity
