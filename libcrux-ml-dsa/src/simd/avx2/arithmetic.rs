@@ -54,16 +54,20 @@ pub(super) fn subtract(lhs: &mut Vec256, rhs: &Vec256) {
 }
 
 // Not using inline always here regresses performance significantly.
+//
+// Post: only the per-lane mont_mul equality.  The SMTPats on
+// `to_i32x8 (mm256_op …) i` (registered in Spec.Intrinsics) propagate
+// lane-wise through the SIMD chain; mont_mul auto-unfolds to
+// `mont_red (i32_mul x y)`; `reveal_opaque mont_red` exposes the hi/lo
+// body which syntactically matches the SIMD expansion.  Bound + mod-q
+// derivations belong at the trait/caller layer where they invoke
+// `lemma_mont_mul_bound_and_mod_q` per-lane.
 #[inline(always)]
 #[hax_lib::fstar::before(r#"[@@ "opaque_to_smt"]"#)]
-#[hax_lib::fstar::options("--z3rlimit 800")]
-#[hax_lib::requires(fstar!(r#"Spec.Utils.is_i32b 4190208 $constant"#))]
+#[hax_lib::fstar::options("--z3rlimit 200")]
 #[hax_lib::ensures(|result| fstar!(r#"
-    (forall i. to_i32x8 ${result} i ==
-               Spec.MLDSA.Math.mont_mul (to_i32x8 ${lhs} i) $constant) /\
-    (forall i. Spec.Utils.is_i32b 8380416 (to_i32x8 ${result} i)) /\
-    (forall i. Spec.MLDSA.Math.mod_q (v (to_i32x8 ${result} i)) ==
-               Spec.MLDSA.Math.mod_q (v (to_i32x8 ${lhs} i) * v $constant * 8265825))
+    forall i. to_i32x8 ${result} i ==
+              Spec.MLDSA.Math.mont_mul (to_i32x8 ${lhs} i) $constant
 "#))]
 pub(super) fn montgomery_multiply_by_constant(lhs: Vec256, constant: i32) -> Vec256 {
     hax_lib::fstar!("reveal_opaque (`%Spec.MLDSA.Math.mont_red) (Spec.MLDSA.Math.mont_red)");
@@ -88,39 +92,22 @@ pub(super) fn montgomery_multiply_by_constant(lhs: Vec256, constant: i32) -> Vec
     let res02 = mm256_sub_epi32(prod02, c02);
     let res13 = mm256_sub_epi32(prod13, c13);
     let res02_shifted = mm256_shuffle_epi32::<0b11_11_01_01>(res02);
-    let result = mm256_blend_epi32::<0b10101010>(res02_shifted, res13);
-
-    // Apply per-lane bound + mod-q lemma.
-    hax_lib::fstar!(
-        r#"let aux (i:u64{v i < 8}) : Lemma
-             (Spec.Utils.is_i32b 8380416 (to_i32x8 result i) /\
-              Spec.MLDSA.Math.mod_q (v (to_i32x8 result i)) ==
-              Spec.MLDSA.Math.mod_q (v (to_i32x8 lhs i) * v constant * 8265825)) =
-             Hacspec_ml_dsa.Commute.Chunk.lemma_mont_mul_bound_and_mod_q
-               (to_i32x8 lhs i) constant
-           in
-           Classical.forall_intro aux"#
-    );
-
-    result
+    mm256_blend_epi32::<0b10101010>(res02_shifted, res13)
 }
 
 // Not using inline always here regresses performance significantly.
 #[inline(always)]
 #[hax_lib::fstar::before(r#"[@@ "opaque_to_smt"]"#)]
-#[hax_lib::fstar::options("--z3rlimit 800")]
+#[hax_lib::fstar::options("--z3rlimit 200")]
 #[hax_lib::requires(
     hax_lib::eq(field_modulus, mm256_set1_epi32(FIELD_MODULUS)).and(hax_lib::eq(
         inverse_of_modulus_mod_montgomery_r,
         mm256_set1_epi32(INVERSE_OF_MODULUS_MOD_MONTGOMERY_R as i32),
-    )).and(hax_lib::fstar::prop!(r#"forall i. Spec.Utils.is_i32b 8380416 (to_i32x8 ${rhs} i)"#))
+    ))
 )]
 #[hax_lib::ensures(|_| fstar!(r#"
-    (forall i. to_i32x8 ${lhs}_future i ==
-               Spec.MLDSA.Math.mont_mul (to_i32x8 ${lhs} i) (to_i32x8 ${rhs} i)) /\
-    (forall i. Spec.Utils.is_i32b 8380416 (to_i32x8 ${lhs}_future i)) /\
-    (forall i. Spec.MLDSA.Math.mod_q (v (to_i32x8 ${lhs}_future i)) ==
-               Spec.MLDSA.Math.mod_q (v (to_i32x8 ${lhs} i) * v (to_i32x8 ${rhs} i) * 8265825))
+    forall i. to_i32x8 ${lhs}_future i ==
+              Spec.MLDSA.Math.mont_mul (to_i32x8 ${lhs} i) (to_i32x8 ${rhs} i)
 "#))]
 pub(super) fn montgomery_multiply_aux(
     field_modulus: Vec256,
@@ -128,8 +115,6 @@ pub(super) fn montgomery_multiply_aux(
     lhs: &mut Vec256,
     rhs: &Vec256,
 ) {
-    #[cfg(hax)]
-    let _lhs0 = *lhs;
     hax_lib::fstar!("reveal_opaque (`%Spec.MLDSA.Math.mont_red) (Spec.MLDSA.Math.mont_red)");
 
     let prod02 = mm256_mul_epi32(*lhs, *rhs);
@@ -147,32 +132,14 @@ pub(super) fn montgomery_multiply_aux(
     let res13 = mm256_sub_epi32(prod13, c13);
     let res02_shifted = mm256_shuffle_epi32::<0b11_11_01_01>(res02);
     *lhs = mm256_blend_epi32::<0b10101010>(res02_shifted, res13);
-
-    // Apply per-lane bound + mod-q lemma.  After `*lhs = ...`, the F* binding
-    // `lhs` shadows the parameter and refers to the post-state; the pre-state
-    // is preserved in `_lhs0`.
-    hax_lib::fstar!(
-        r#"let aux (i:u64{v i < 8}) : Lemma
-             (Spec.Utils.is_i32b 8380416 (to_i32x8 ${lhs} i) /\
-              Spec.MLDSA.Math.mod_q (v (to_i32x8 ${lhs} i)) ==
-              Spec.MLDSA.Math.mod_q (v (to_i32x8 ${_lhs0} i) * v (to_i32x8 rhs i) * 8265825)) =
-             Hacspec_ml_dsa.Commute.Chunk.lemma_mont_mul_bound_and_mod_q
-               (to_i32x8 ${_lhs0} i) (to_i32x8 rhs i)
-           in
-           Classical.forall_intro aux"#
-    );
 }
 
 // Not using inline always here regresses performance significantly.
 #[inline(always)]
 #[hax_lib::fstar::before(r#"[@@ "opaque_to_smt"]"#)]
-#[hax_lib::requires(fstar!(r#"forall i. Spec.Utils.is_i32b 8380416 (to_i32x8 ${rhs} i)"#))]
 #[hax_lib::ensures(|_| fstar!(r#"
-    (forall i. to_i32x8 ${lhs}_future i ==
-               Spec.MLDSA.Math.mont_mul (to_i32x8 ${lhs} i) (to_i32x8 ${rhs} i)) /\
-    (forall i. Spec.Utils.is_i32b 8380416 (to_i32x8 ${lhs}_future i)) /\
-    (forall i. Spec.MLDSA.Math.mod_q (v (to_i32x8 ${lhs}_future i)) ==
-               Spec.MLDSA.Math.mod_q (v (to_i32x8 ${lhs} i) * v (to_i32x8 ${rhs} i) * 8265825))
+    forall i. to_i32x8 ${lhs}_future i ==
+              Spec.MLDSA.Math.mont_mul (to_i32x8 ${lhs} i) (to_i32x8 ${rhs} i)
 "#))]
 pub(super) fn montgomery_multiply(lhs: &mut Vec256, rhs: &Vec256) {
     let field_modulus = mm256_set1_epi32(FIELD_MODULUS);
