@@ -174,9 +174,12 @@ pub(crate) fn montgomery_multiply_fe_by_fer(
 #[hax_lib::requires(fstar!(r#"Spec.Utils.is_i32b 4190208 $c"#))]
 #[hax_lib::ensures(|result| fstar!(r#"
     Spec.Utils.is_i32b_array_opaque 8380416 ${simd_unit}_future.Libcrux_ml_dsa.Simd.Portable.Vector_type.f_values /\
-    Spec.MLDSA.Math.(forall i. i < 8 ==> 
-        mod_q (v (Seq.index ${simd_unit}_future.Libcrux_ml_dsa.Simd.Portable.Vector_type.f_values i)) == 
-        mod_q (v (Seq.index ${simd_unit}.Libcrux_ml_dsa.Simd.Portable.Vector_type.f_values i) * v $c * 8265825))"#))]
+    Spec.MLDSA.Math.(forall i. i < 8 ==>
+        mod_q (v (Seq.index ${simd_unit}_future.Libcrux_ml_dsa.Simd.Portable.Vector_type.f_values i)) ==
+        mod_q (v (Seq.index ${simd_unit}.Libcrux_ml_dsa.Simd.Portable.Vector_type.f_values i) * v $c * 8265825)) /\
+    (forall (i:nat). i < 8 ==>
+        Seq.index ${simd_unit}_future.Libcrux_ml_dsa.Simd.Portable.Vector_type.f_values i ==
+        Spec.MLDSA.Math.mont_mul (Seq.index ${simd_unit}.Libcrux_ml_dsa.Simd.Portable.Vector_type.f_values i) $c)"#))]
 pub(crate) fn montgomery_multiply_by_constant(simd_unit: &mut Coefficients, c: i32) {
     #[cfg(hax)]
     let _simd_unit0 = simd_unit.clone();
@@ -191,7 +194,8 @@ pub(crate) fn montgomery_multiply_by_constant(simd_unit: &mut Coefficients, c: i
               (forall j. j < v $i ==>
 	      	  (let vecj = Seq.index ${simd_unit}.Libcrux_ml_dsa.Simd.Portable.Vector_type.f_values j in
 		       (Spec.Utils.is_i32b 8380416 vecj /\
-                Spec.MLDSA.Math.mod_q (v vecj) == Spec.MLDSA.Math.mod_q (v (Seq.index ${_simd_unit0}.Libcrux_ml_dsa.Simd.Portable.Vector_type.f_values j) * v $c * 8265825)))) /\
+                Spec.MLDSA.Math.mod_q (v vecj) == Spec.MLDSA.Math.mod_q (v (Seq.index ${_simd_unit0}.Libcrux_ml_dsa.Simd.Portable.Vector_type.f_values j) * v $c * 8265825) /\
+                vecj == Spec.MLDSA.Math.mont_mul (Seq.index ${_simd_unit0}.Libcrux_ml_dsa.Simd.Portable.Vector_type.f_values j) $c))) /\
               (forall j. j >= v $i ==> (Seq.index ${simd_unit}.Libcrux_ml_dsa.Simd.Portable.Vector_type.f_values j) == (Seq.index ${_simd_unit0}.Libcrux_ml_dsa.Simd.Portable.Vector_type.f_values j))"#
             )
         });
@@ -201,13 +205,16 @@ pub(crate) fn montgomery_multiply_by_constant(simd_unit: &mut Coefficients, c: i
 
         simd_unit.values[i] = montgomery_reduce_element((simd_unit.values[i] as i64) * (c as i64));
 
-        // Tight 8380416 bound + mod-q correctness for the per-element
-        // mont_mul.  Same bridge pattern as montgomery_multiply_fe_by_fer.
+        // Tight 8380416 bound + mod-q correctness + mont_mul equality for the
+        // per-element mont_mul.  Same bridge pattern as montgomery_multiply_fe_by_fer.
+        // The reveals unfold `i32_mul lhs c` to `(cast lhs) *! (cast c)` so F* sees
+        // `mont_mul lhs c == mont_red ((lhs as i64) * (c as i64)) == result`.
         hax_lib::fstar!(
             r#"Hacspec_ml_dsa.Commute.Chunk.lemma_mont_mul_bound_and_mod_q
                  (Seq.index ${_simd_unit0}.Libcrux_ml_dsa.Simd.Portable.Vector_type.f_values (v $i)) $c;
                Spec.Intrinsics.reveal_opaque_arithmetic_ops #i64_inttype;
-               Spec.Intrinsics.reveal_opaque_cast_ops #i32_inttype #i64_inttype"#
+               Spec.Intrinsics.reveal_opaque_cast_ops #i32_inttype #i64_inttype;
+               reveal_opaque (`%Spec.MLDSA.Math.i32_mul) (Spec.MLDSA.Math.i32_mul)"#
         );
     }
 }
@@ -218,9 +225,13 @@ pub(crate) fn montgomery_multiply_by_constant(simd_unit: &mut Coefficients, c: i
 #[hax_lib::requires(fstar!(r#"Spec.Utils.is_i32b_array_opaque 8380416 ${rhs}.Libcrux_ml_dsa.Simd.Portable.Vector_type.f_values"#))]
 #[hax_lib::ensures(|result| fstar!(r#"
     Spec.Utils.is_i32b_array_opaque 8380416 ${lhs}_future.Libcrux_ml_dsa.Simd.Portable.Vector_type.f_values /\
-    Spec.MLDSA.Math.(forall i. i < 8 ==> 
-        mod_q (v (Seq.index ${lhs}_future.Libcrux_ml_dsa.Simd.Portable.Vector_type.f_values i)) == 
-        mod_q (v (Seq.index ${lhs}.Libcrux_ml_dsa.Simd.Portable.Vector_type.f_values i) * v (Seq.index ${rhs}.Libcrux_ml_dsa.Simd.Portable.Vector_type.f_values i) * 8265825))"#))]
+    Spec.MLDSA.Math.(forall i. i < 8 ==>
+        mod_q (v (Seq.index ${lhs}_future.Libcrux_ml_dsa.Simd.Portable.Vector_type.f_values i)) ==
+        mod_q (v (Seq.index ${lhs}.Libcrux_ml_dsa.Simd.Portable.Vector_type.f_values i) * v (Seq.index ${rhs}.Libcrux_ml_dsa.Simd.Portable.Vector_type.f_values i) * 8265825)) /\
+    (forall (i:nat). i < 8 ==>
+        Seq.index ${lhs}_future.Libcrux_ml_dsa.Simd.Portable.Vector_type.f_values i ==
+        Spec.MLDSA.Math.mont_mul (Seq.index ${lhs}.Libcrux_ml_dsa.Simd.Portable.Vector_type.f_values i)
+                                 (Seq.index ${rhs}.Libcrux_ml_dsa.Simd.Portable.Vector_type.f_values i))"#))]
 pub(crate) fn montgomery_multiply(lhs: &mut Coefficients, rhs: &Coefficients) {
     #[cfg(hax)]
     let _lhs0 = lhs.clone();
@@ -235,7 +246,8 @@ pub(crate) fn montgomery_multiply(lhs: &mut Coefficients, rhs: &Coefficients) {
               (forall j. j < v $i ==>
 	      	  (let vecj = Seq.index ${lhs}.Libcrux_ml_dsa.Simd.Portable.Vector_type.f_values j in
 		       (Spec.Utils.is_i32b 8380416 vecj /\
-                Spec.MLDSA.Math.mod_q (v vecj) == Spec.MLDSA.Math.mod_q (v (Seq.index ${_lhs0}.Libcrux_ml_dsa.Simd.Portable.Vector_type.f_values j) * v (Seq.index ${rhs}.Libcrux_ml_dsa.Simd.Portable.Vector_type.f_values j) * 8265825)))) /\
+                Spec.MLDSA.Math.mod_q (v vecj) == Spec.MLDSA.Math.mod_q (v (Seq.index ${_lhs0}.Libcrux_ml_dsa.Simd.Portable.Vector_type.f_values j) * v (Seq.index ${rhs}.Libcrux_ml_dsa.Simd.Portable.Vector_type.f_values j) * 8265825) /\
+                vecj == Spec.MLDSA.Math.mont_mul (Seq.index ${_lhs0}.Libcrux_ml_dsa.Simd.Portable.Vector_type.f_values j) (Seq.index ${rhs}.Libcrux_ml_dsa.Simd.Portable.Vector_type.f_values j)))) /\
               (forall j. j >= v $i ==> (Seq.index ${lhs}.Libcrux_ml_dsa.Simd.Portable.Vector_type.f_values j) == (Seq.index ${_lhs0}.Libcrux_ml_dsa.Simd.Portable.Vector_type.f_values j))"#
             )
         });
@@ -245,14 +257,17 @@ pub(crate) fn montgomery_multiply(lhs: &mut Coefficients, rhs: &Coefficients) {
 
         lhs.values[i] = montgomery_reduce_element((lhs.values[i] as i64) * (rhs.values[i] as i64));
 
-        // Tight 8380416 bound + mod-q correctness for the per-element
-        // mont_mul.  Same bridge pattern as montgomery_multiply_by_constant.
+        // Tight 8380416 bound + mod-q correctness + mont_mul equality for the
+        // per-element mont_mul.  Same bridge pattern as montgomery_multiply_by_constant.
+        // The reveals unfold `i32_mul lhs rhs` to `(cast lhs) *! (cast rhs)` so F* sees
+        // `mont_mul lhs rhs == mont_red ((lhs as i64) * (rhs as i64)) == result`.
         hax_lib::fstar!(
             r#"Hacspec_ml_dsa.Commute.Chunk.lemma_mont_mul_bound_and_mod_q
                  (Seq.index ${_lhs0}.Libcrux_ml_dsa.Simd.Portable.Vector_type.f_values (v $i))
                  (Seq.index ${rhs}.Libcrux_ml_dsa.Simd.Portable.Vector_type.f_values (v $i));
                Spec.Intrinsics.reveal_opaque_arithmetic_ops #i64_inttype;
-               Spec.Intrinsics.reveal_opaque_cast_ops #i32_inttype #i64_inttype"#
+               Spec.Intrinsics.reveal_opaque_cast_ops #i32_inttype #i64_inttype;
+               reveal_opaque (`%Spec.MLDSA.Math.i32_mul) (Spec.MLDSA.Math.i32_mul)"#
         );
     }
 }
