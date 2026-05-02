@@ -512,19 +512,207 @@ combining `compute_as1_plus_s2` (this sprint) and
 final `generate_key_pair` panic_free flip.
 ```
 
-### Sprint 1 outcome summary (to be filled at end of Sprint 1)
+### Sprint 1 partial outcome (Stages 0–2 landed, 2026-05-02)
 
-(Append concrete artefact paths, predicate names, lemma names,
-trait-post shape here when Sprint 1's Stage 8 success criterion
-is met.)
+Stages 0, 1, 1b, 2 committed on `ml-dsa-proofs`.  Tip: `2dc8c3d39`.
 
-* Spec functions added: `Spec.MLDSA.Math.mont_red`
-* Opaque bound predicates: `<TBD>`
-* Specialized lookup lemmas: `<TBD>`
-* `Operations::montgomery_multiply` post change: `<TBD>`
-* `Operations::invert_ntt_montgomery` post change: `<TBD>`
-* Commits: `<SHA1, SHA2, ...>`
-* Worktree branch (pre-merge): `<branch-name>`
+* **Spec.MLDSA.Math.fst additions:**
+  - `mont_red (value: i64) : i32` (opaque) — single-arg Montgomery
+    reduction, mirrors `simd/portable/arithmetic.rs::montgomery_reduce_element`.
+  - `mont_mul (x y: i32) : i32` — refactored to non-opaque
+    `mont_red (i32_mul x y)`.  Single-level opacity at `mont_red`.
+  - `lemma_mont_red_bound_internal (n: nat) (value: i64)` — parametric
+    bound: `is_i64b n value /\ n <= FIELD_MAX·2³² ⇒ is_i32b (4190209 + n/2³²) (mont_red value)`.
+  - Specialized lookup lemmas (each derives from the parametric one
+    via `assert_norm`):
+    - `lemma_mont_red_bound_field_max_times_pow2_32` → `is_i32b 12_570_625`
+    - `lemma_mont_red_bound_q_squared` → `is_i32b 4_206_561`
+    - `lemma_mont_red_bound_field_max_times_pow2_31` → `is_i32b 8_380_417`
+    - `lemma_mont_red_bound_field_max_times_41978` → `is_i32b 4_190_290`
+    - `lemma_mont_red_bound_256_field_max_times_41978` → `is_i32b 4_211_177`
+  - `lemma_mont_red_mod_q (value: i64)` — mod-q correctness for
+    `mont_red` under `is_i64b (FIELD_MAX·2³²) value` precondition.
+    **ADMITTED** in this sprint (USER-FOLLOWUP); the original
+    calc-chain from `montgomery_reduce_element`'s impl body is
+    preserved as a comment for reference.
+
+* **Portable arithmetic refactor (`simd/portable/arithmetic.rs`):**
+  - `montgomery_reduce_element`: 50+ lines of inline asserts/calc-blocks
+    REMOVED.  New post = `(v result == v (mont_red value)) /\` 3-clause
+    bound+mod-q (one looser tight branch: `is_i32b 8380417` instead of
+    `is_i32b 8380416` — the missing 1-unit tightness was for callers
+    that need exactly q-1; those re-derive via `lemma_mont_mul_bound_and_mod_q`
+    at the call site).  Body is 6 `let`s + reveals + 4 lemma calls.
+  - `montgomery_multiply_fe_by_fer`, `montgomery_multiply_by_constant`,
+    `montgomery_multiply`: each adds a `lemma_mont_mul_bound_and_mod_q`
+    call + 2 Spec.Intrinsics reveals (`reveal_opaque_arithmetic_ops`
+    `#i64_inttype` + `reveal_opaque_cast_ops #i32_inttype #i64_inttype`)
+    to bridge `result == mont_mul`.  The tight `is_i32b 8380416` bound
+    is preserved.
+
+* **AVX2 arithmetic (`simd/avx2/arithmetic.rs`):**
+  - `montgomery_multiply_by_constant`: added `is_i32b 4190208 constant`
+    pre, added bound + mod-q post clauses, body uses
+    `Classical.forall_intro` over 8 lanes to apply
+    `lemma_mont_mul_bound_and_mod_q`.
+  - `montgomery_multiply_aux`, `montgomery_multiply`: added
+    `is_i32b_array_opaque 8380416 rhs` pre, added bound + mod-q post
+    clauses, same forall_intro pattern.
+
+* **Trait + impls (`simd/traits.rs`, `simd/portable.rs`,
+  `simd/avx2.rs`):**
+  - `Operations::montgomery_multiply` post adds a third conjunct:
+    `forall i. lhs_future[i] == mont_mul lhs[i] rhs[i]`.  Single
+    source of truth — callers use any `mont_red`/`mont_mul` lemma
+    to extract specific bounds.
+  - Both impls (Portable, Avx2) updated with matching post.  No body
+    changes in trait impls — existing internal proofs entail the new
+    clause.
+
+* **Commits:**
+  - `e945e1954` — Stage 0 (mont_red def + mont_mul refactor)
+  - `e0cbe04f1` — Stage 1 (parametric bound lemma)
+  - `7b363de30` — Stage 1b (4 specialized lookup lemmas)
+  - `2dc8c3d39` — Stage 2 (wire through portable + avx2 + trait)
+
+### Sprint 1 remaining work (Stages 3+)
+
+1. **Add per-lane equality to `montgomery_multiply_by_constant` impl-side
+   free fn post** (both portable + avx2): `forall i. result_lane[i] ==
+   mont_red ((lhs_lane[i] as i64) * (c as i64))`.  Mirrors what we
+   did for `montgomery_multiply`.
+
+2. **Tighten `Operations::invert_ntt_montgomery` trait post** to
+   `is_i32b_array_opaque 4_211_177` (or a piecewise/parametric form).
+   Underlying impls' body proofs need:
+   - Update loop_invariant in `simd/portable/invntt.rs::invert_ntt_montgomery`
+     final loop to track `is_i32b 4_211_177` per processed lane.
+   - Apply `lemma_mont_red_bound_256_field_max_times_41978` per-lane
+     after the `montgomery_multiply_by_constant(_, 41_978)` call.
+   - Same for AVX2's `simd/avx2/invntt.rs`.
+
+3. **Update polynomial-level `Libcrux_ml_dsa.Ntt::invert_ntt_montgomery`**
+   to mirror trait post (per-coeff `is_i32b 4_211_177`).
+
+4. **Discharge `lemma_mont_red_mod_q`** (currently admitted) — port the
+   existing calc-chain from the comment block in
+   `Spec.MLDSA.Math.fst`.  See also
+   `Hacspec_ml_dsa.Commute.Chunk.lemma_mont_mul_bound_and_mod_q` for a
+   working analogue on `mont_mul x y`.
+
+### Sprint 1 → Sprint 2 handoff prompt (next round)
+
+```text
+You are picking up Sprint 1 of the Montgomery-bound foundation in
+libcrux-ml-dsa, mid-sprint.  Branch `ml-dsa-proofs` at tip `2dc8c3d39`.
+Stages 0, 1, 1b, 2 are committed and verified clean.
+
+READ FIRST (in order):
+
+1. `libcrux-ml-dsa/proofs/handoff-2026-05-02-mont-bound-foundation.md` —
+   §"Sprint 1 partial outcome" lists what landed; §"Sprint 1 remaining
+   work" lists what's left.
+2. `libcrux-ml-dsa/proofs/fstar/spec/Spec.MLDSA.Math.fst` — see
+   `mont_red`, `mont_mul`, `lemma_mont_red_bound_internal` and the 5
+   specialized lookup lemmas.  Note `lemma_mont_red_mod_q` is admitted
+   — its full calc-chain is preserved as a comment.
+3. `libcrux-ml-dsa/src/simd/portable/arithmetic.rs::montgomery_reduce_element`
+   — the canonical refactored shape (post = mont_red equality + bound
+   + mod-q clauses, body uses lemma calls).
+4. Tip commits 7b363de30, 2dc8c3d39 — the diffs that landed Stages 1b
+   and 2 respectively.
+
+GOAL FOR THIS ROUND:
+Tighten the trait `Operations::invert_ntt_montgomery` post from the
+loose `is_i32b_array_opaque FIELD_MAX` to the tight `is_i32b 4_211_177`
+(= q/2 + ⌈256·FIELD_MAX·41_978 / 2³²⌉).  This is the headline payoff
+for the Montgomery sprint — it unblocks `compute_as1_plus_s2`'s body
+proof in Sprint 2 (the `+s2` step then stays within `power2round_vector`'s
+`is_i32b FIELD_MAX` pre by a comfortable margin).
+
+WORK TO DO (in order):
+
+STAGE 3 — equality clause on `montgomery_multiply_by_constant` impl
+    Cap: 30 min per impl.
+
+    Files:
+    - `libcrux-ml-dsa/src/simd/portable/arithmetic.rs::montgomery_multiply_by_constant`
+    - `libcrux-ml-dsa/src/simd/avx2/arithmetic.rs::montgomery_multiply_by_constant`
+
+    For each:
+    A. Add a per-lane equality clause to ensures:
+         `forall i. simd_unit_future_lane[i] ==
+                    mont_red ((simd_unit_lane[i] as i64) * (c as i64))`
+    B. Body proof: in the existing post-call block (where we already
+       call `lemma_mont_mul_bound_and_mod_q`), add reveals to derive
+       the equality.  May just need the existing reveals plus a
+       single `assert` of the equality form.
+
+STAGE 4 — tighten loop_invariant + post of `invert_ntt_montgomery` impl
+    Cap: 60 min per impl.
+
+    Files:
+    - `libcrux-ml-dsa/src/simd/portable/invntt.rs::invert_ntt_montgomery`
+      (the final loop; lines ~500-519).
+    - `libcrux-ml-dsa/src/simd/avx2/invntt.rs::invert_ntt_montgomery`
+      (analogous).
+
+    For each:
+    A. Tighten the post from `is_i32b_polynomial FIELD_MAX` to
+       `is_i32b_polynomial 4_211_177`.
+    B. Loop_invariant: change the processed-prefix bound from FIELD_MAX
+       to 4_211_177.
+    C. Body: after the `montgomery_multiply_by_constant(_, 41978)`
+       call, invoke `lemma_mont_red_bound_256_field_max_times_41978`
+       per-lane.  The Stage 3 equality clause supplies the bridge from
+       `simd_unit.values[i]` to `mont_red ((orig_value * 41978) as i64)`.
+
+STAGE 5 — update trait `Operations::invert_ntt_montgomery` post
+    Cap: 30 min.
+
+    File: `libcrux-ml-dsa/src/simd/traits.rs` (around line 342).
+
+    Change the post from:
+        forall i. is_i32b_array_opaque (v FIELD_MAX) (simd_units_future[i].repr)
+    to:
+        forall i. is_i32b_array_opaque 4211177 (simd_units_future[i].repr)
+
+    Both impls (Portable, Avx2) need to satisfy.  After Stages 3+4
+    they should — but check the trait impl methods in
+    `simd/portable.rs` and `simd/avx2.rs` and update if pre/post
+    are duplicated there.
+
+STAGE 6 — update polynomial wrapper `Libcrux_ml_dsa.Ntt::invert_ntt_montgomery`
+    Cap: 30 min.
+
+    File: `libcrux-ml-dsa/src/ntt.rs::invert_ntt_montgomery`.
+
+    Mirror the tighter bound at the polynomial level (per simd_unit,
+    per lane).  The body just delegates to the SIMD trait method.
+
+STAGE 7 — global verify
+    Cap: 15 min.
+    `JOBS=4 ./hax.sh prove 2>&1 | tail` — 0 errors.
+    `cargo test --release --lib --manifest-path libcrux-ml-dsa/Cargo.toml`
+      — 20/20.
+
+HARD RULES:
+* rlimit cap: NEVER --z3rlimit > 800 (or > 400 with --split_queries always).
+* Per-function 30-60 min hard cap on proof debug.  Mark and move on.
+* DO NOT touch ml_dsa_generic.rs, matrix.rs, sample.rs, samplex4.rs,
+  power2round_vector — those are Sprint 2's territory.
+* DO NOT push to origin.
+
+FOLLOWUP (defer to Sprint 2 or later):
+* `lemma_mont_red_mod_q` is currently admitted in
+  `Spec.MLDSA.Math.fst`.  Discharging it is a USER-FOLLOWUP
+  (calc-chain preserved as comment in the file).  Not blocking for
+  this round.
+* `compute_as1_plus_s2` body proof — Sprint 2 work, will use the
+  tightened `invert_ntt_montgomery` post landed in this round.
+
+Begin.  Each stage stops for review.
+```
 
 ---
 
