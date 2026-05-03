@@ -23,50 +23,105 @@ cone, all `verification_status(lax)` cleared in AVX2, only the 17
 User time budget: **~9 hr over the week**, scheduled to unblock agent
 work as it lands.
 
-### Mon — Mont Sprint 2 kickoff
+### Mon — User-decision day (Claude usage constrained until reset ~24 h)
 
-🤖 1 agent: `compute_as1_plus_s2` body proof (Sprint 2 Task 1).  Use
-   the new tight `is_i32b_array_opaque 4211177` post on
+**Frame**: Claude usage is paused until reset.  Use the day for the
+high-leverage user decisions normally scheduled later in the sprint —
+this lets Tue-Sun proceed at full agent throughput with no further
+gating decisions.
+
+🤖 0 agent runs (intentionally).  No automated work today.
+
+👤 ~4-5 hr of focused user work, in priority order:
+
+1. **`power2round_one_ring_element` refactor decision** (originally
+   Wed; pulled forward because it gates the keygen-cone flips on
+   Thu).  Decide one of:
+   * Take t1 by value (cleanest; check whether any caller relies on
+     the in-place semantics for perf).
+   * Return tuple (slight allocation cost, no caller change).
+   * Accept admit on `power2round_vector` for Sprint A and chase in
+     Sprint B.
+
+   Document the decision in
+   `proofs/agent-status/power2round-refactor-decision.md`.  ~1 hr.
+
+2. **Trait correctness-post shape — design preview** (originally
+   week 2; pulled forward to start drafting now so week-2 agents
+   can land on a complete design).  Skim
+   `proofs/agent-status/agent-trait-pattern-audit-2026-05-02.md`
+   (if exists; otherwise the audit table in the proof-review).
+   For each of the 22 missing-correctness-post methods, draft:
+   * Hacspec function pointer (e.g.,
+     `Operations::ntt` post should cite `Hacspec_ml_dsa.Ntt.ntt`).
+   * Per-lane vs whole-vector equality.
+   * Lane-post predicate name (mirror existing
+     `montgomery_multiply_lane_post`).
+
+   Save draft as
+   `proofs/agent-status/trait-correctness-post-design-draft.md`.
+   ~2 hr.  Don't finalize yet — week 2 will refine.
+
+3. **Read `proofs/agent-status/agent-proof-review-2026-05-03.md`**
+   end-to-end.  Confirm or revise the sprint priorities.  Especially:
+   * Are the 7 Hacspec `assume`s lift-to-precondition vs
+     discharge-in-place?  (Affects week 5 user time.)
+   * Is `lemma_decompose_spec_eq_decompose` Sat-budget realistic?
+     If not, swap with a Wed user session.
+   * Any Sprint A targets to drop or add?
+
+   30 min.
+
+4. **Pre-flight `compute_as1_plus_s2` body** (optional, ~1 hr).  Look
+   at the function in `src/matrix.rs:44`, the loop_invariant pattern
+   in `add_vectors`, and the new tight invntt post.  Does the chain
+   compose mentally?  If yes, Tue's agent run will be smooth.  If a
+   blocker is visible (hax tactic, Z3 shape), revise the Tue plan
+   before agents start.
+
+**Output of Mon**: 2 design docs (refactor decision + trait-post
+draft) + a confirmed sprint priority list.  This lets Tue agents
+launch on solid ground with no mid-flight Claude consultations
+needed for design questions.
+
+### Tue — Mont Sprint 2 kickoff (full agent throughput)
+
+🤖 1 agent: `compute_as1_plus_s2` body proof (Sprint 2 Task 1).
+   Use the new tight `is_i32b_array_opaque 4211177` post on
    `invert_ntt_montgomery`.  Per-function 30-60 min cap.
 
-👤 30 min: read `agent-bound-propagation-status.md` mid-day; intervene
-   if the hax slice-bounds tactic limitation re-fires (Class B
-   Chain 3's old blocker).  Decision tree:
+🤖 (after compute_as1_plus_s2 lands) 2 agents in parallel:
+   * `compute_w_approx` body (Task 2)
+   * `compute_matrix_x_mask` body (Task 3)
+   Both copy-paste shape from compute_as1_plus_s2.
+
+🤖 1 agent: re-prove `vector_times_ring_element` body (currently
+   admitted post-Sprint-1 as a Z3-saturation casualty).
+
+👤 ~1 hr: mid-day status check; intervene if the hax slice-bounds
+   tactic limitation re-fires (Class B Chain 3's old blocker).
+   Decision tree:
    * Tactic failure → propose loop-invariant refactor; if that fails,
      escalate to take-by-value Rust signature change.
    * Z3 saturation → introduce explicit `Classical.forall_intro` with
-     focused trigger.  ~1 hr if it hits.
+     focused trigger.
 
-### Tue — Mont Sprint 2 fan-out
+   If `vector_times_ring_element` keeps saturating, accept admit and
+   move on.
 
-🤖 2 agents in parallel:
-   * `compute_w_approx` body (Task 2)
-   * `compute_matrix_x_mask` body (Task 3)
-   Both copy-paste shape from Mon's compute_as1_plus_s2.
-
-🤖 1 agent: re-prove `vector_times_ring_element` body (currently
-   admitted post-Sprint-1 as a Z3-saturation casualty).  With
-   today's tighter post + Mon's invariant patterns, may close.
-
-👤 30 min: review status; if any of the three saturate, intervene
-   with the focused-trigger pattern.  If `vector_times_ring_element`
-   keeps saturating, accept admit and move on.
-
-### Wed — sample.rs admits + power2round refactor decision
+### Wed — sample.rs admits + power2round refactor execution
 
 🤖 2 agents in parallel:
    * `sample_mask_ring_element` + `sample_mask_vector` body proofs
      (Class B Chain 1 surfaced ensures already in place)
    * `sample_challenge_ring_element` body
 
-👤 1 hr: **`power2round_one_ring_element` refactor decision** (#3 in
-   the user-tasks list).  Current `&mut t1` signature blocks the hax
-   slice-bounds tactic in `power2round_vector`.  Decide:
-   * Take t1 by value (cleanest, may regress perf)
-   * Return tuple (slight allocation cost)
-   * Accept admit on `power2round_vector` for Sprint A and chase in
-     Sprint B
-   Drive the refactor or document the admit.
+🤖 1 agent: drive the `power2round_one_ring_element` refactor per
+   Mon's decision doc (`power2round-refactor-decision.md`), if not
+   the "accept admit" branch.  Update callers; re-extract; verify.
+
+👤 30 min: spot-check the refactor.  If Mon's decision was "accept
+   admit", skip this; agents focus only on sample.rs.
 
 ### Thu — Public API panic-free flips
 
@@ -264,18 +319,27 @@ which is itself gated by Sprint A clearing the trait impl bodies.
 
 | # | Task | When | Hours | Why human-only |
 |---|---|---|---|---|
-| 1 | `compute_as1_plus_s2` Z3-saturation rescue | Wk 1 Mon | 1 | Hax tactic / Z3 saturation in nested-loop body proofs |
-| 2 | power2round refactor decision | Wk 1 Wed | 1 | Sig-change refactor decision; agents tried 3+ times to work within current API |
-| 3 | `lemma_decompose_spec_eq_decompose` | Wk 1 Sat | 3-4 | 150-200 line bit-trick interval analysis; agents bounce off |
-| 4 | Trait correctness-post design | Wk 2 | 4-6 | API design across 22 trait methods |
-| 5 | 7 in-spec Hacspec `assume` discharge | Wk 5 | 6-8 | Spec-internal loop invariants need algorithm-level reasoning |
-| 6 | Spot-checks throughout | Wk 1 + Wk 4-7 | 4-5 | Course-correct stalled agents, validate flip safety |
-| **Total** | | | **~22 hr** | |
+| 1 | power2round refactor decision | **Wk 1 Mon** (pulled forward) | 1 | Sig-change refactor decision; agents tried 3+ times to work within current API |
+| 2 | Trait correctness-post draft | **Wk 1 Mon** (pulled forward) | 2 | API design preview; week 2 will refine |
+| 3 | Sprint priority confirmation | Wk 1 Mon | 0.5 | Read proof-review; revise if needed |
+| 4 | Pre-flight `compute_as1_plus_s2` | Wk 1 Mon (optional) | 1 | Mental compose-check before Tue agent run |
+| 5 | `compute_as1_plus_s2` Z3-saturation rescue | Wk 1 Tue | 1 | Hax tactic / Z3 saturation in nested-loop body proofs |
+| 6 | Refactor + sample-admit spot-check | Wk 1 Wed | 0.5 | Validate Mon decision execution |
+| 7 | Public API flip spot-checks | Wk 1 Thu | 0.5 | Ensure no `verification_status(lax)` slips in |
+| 8 | `lemma_decompose_spec_eq_decompose` | Wk 1 Sat | 3-4 | 150-200 line bit-trick interval analysis; agents bounce off |
+| 9 | Sprint A wrap-up + handoff | Wk 1 Sun | 1 | Completion report + Sprint B kickoff prompt |
+| 10 | Trait correctness-post finalize | Wk 2 | 4-6 | Refine Mon's draft; finalize design across 22 trait methods |
+| 11 | 7 in-spec Hacspec `assume` discharge | Wk 5 | 6-8 | Spec-internal loop invariants need algorithm-level reasoning |
+| 12 | Spot-checks throughout | Wk 4-7 | 3-4 | Course-correct stalled agents, validate flip safety |
+| **Total** | | | **~24 hr** | |
 
-The week-1 budget is ~9 hr (steady, with daily check-ins).
-Weeks 2-8 add ~13 hr concentrated in week 2 (trait design) and week 5
-(spec discharge).  Other weeks are mostly agent-driven with light
-review.
+The week-1 budget is **~10 hr concentrated on Mon (4-5 hr) and Sat
+(3-4 hr)**, with light daily check-ins (~30-60 min Tue-Thu).  Mon is
+intentionally heavy on user decisions to front-load all gating
+choices BEFORE agent throughput resumes Tue with the usage reset.
+Weeks 2-8 add ~13 hr concentrated in week 2 (trait design finalize)
+and week 5 (spec discharge).  Other weeks are mostly agent-driven
+with light review.
 
 ---
 
