@@ -49,6 +49,16 @@ pub(crate) fn compute_as1_plus_s2<SIMDUnit: Operations>(
     s1_s2: &[PolynomialRingElement<SIMDUnit>],
     result: &mut [PolynomialRingElement<SIMDUnit>],
 ) {
+    // Body admit: hax extracts the nested loop over (a_as_ntt, result) as a
+    // tuple-state fold whose loop_invariant lambda destructures with per-
+    // component type annotations.  F*'s field resolution / array-vs-slice
+    // coercion does not consistently propagate through that destructure, so
+    // even a structurally correct invariant produces "Field name f_simd_units
+    // could not be resolved" / "Expected t_Slice i32, got t_Array i32 8"
+    // errors at the precondition site.  Tracked as Sprint 2 follow-up; needs
+    // either (a) a hax extraction fix to emit a single-state fold over the
+    // tuple, or (b) refactoring the inner j-loop into a helper function so the
+    // outer fold has only `&mut result[..]` as its mut state.
     hax_lib::fstar!("admit ()");
     for i in 0..rows_in_a {
         for j in 0..columns_in_a {
