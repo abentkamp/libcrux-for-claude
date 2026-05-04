@@ -30,5 +30,26 @@ Started: 2026-05-06 12:50
 - Decision: leave admit + comment, follow up by either (a) hax extraction
   emitting single-state fold or (b) refactoring inner j-loop into a helper.
 
-## Active sub-task: Task 3 compute_matrix_x_mask
-- 13:30 begin: matrix is immutable, fold is single-state on result.
+## Task 3 compute_matrix_x_mask — BLOCKED (admit kept)
+- 13:30-14:25 attempted; ~5 invariant variations.
+- Single-state fold on `result`; matrix and mask are immutable params.
+- Tried: per-(k<i)/(k>i) split forall; conditional `if k = v i then …`.
+- Heavy invariant ⇒ Z3 "incomplete quantifiers" on outer→inner state
+  transition.  Lighter invariant ⇒ body assertions (matrix bound for
+  ntt_multiply pre, i*cols overflow) fail because params not in scope.
+- Dropped to admit + comment.  Same follow-up as Task 1: helper-fn
+  refactor of inner accumulation.
+
+## Task 2 compute_w_approx — DEFERRED
+- Same nested-fold structure as Task 3.  Same Z3 quantifier issue
+  expected.  Post is length-only so panic-free is the only goal,
+  but the bound chain (shift_left → ntt → ntt_multiply → subtract →
+  reduce → invert_ntt_montgomery) is deeper than Task 3.  Unlikely to
+  close inside the remaining budget.
+
+## Sprint 2 Day 2 — final state
+- Task 4 vector_times_ring_element: VERIFIED ✓
+- Task 1 compute_as1_plus_s2: BLOCKED (tuple-state fold)
+- Task 3 compute_matrix_x_mask: BLOCKED (Z3 quantifier explosion)
+- Task 2 compute_w_approx: DEFERRED
+- Matrix.fst as a whole verifies cleanly (admit-covered fns counted).

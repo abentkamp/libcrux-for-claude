@@ -108,10 +108,16 @@ pub(crate) fn compute_matrix_x_mask<SIMDUnit: Operations>(
     mask: &[PolynomialRingElement<SIMDUnit>],
     result: &mut [PolynomialRingElement<SIMDUnit>],
 ) {
-    // Body admit — the recipe (Polynomial::add_bounded with j*FIELD_MAX
-    // ghost bound, snapshot-based frame, nested loop_invariants) was tried
-    // but query 106-121 time out at rlimit 800 due to quantifier explosion
-    // in the nested-loop SMT search.  Same shape as compute_as1_plus_s2.
+    // Body admit: nested loop_invariant over `result` with per-element
+    // bound (`forall k. is_i32b_array_opaque ...`) hits Z3 "incomplete
+    // quantifiers" at rlimit 400+split_queries.  Even a single-conditional
+    // forall (`if k = v i then (j+1)*FIELD_MAX else FIELD_MAX`) is
+    // insufficient: the outer→inner state-transition query times out
+    // because matrix/mask/result FIELD_MAX bounds have to be re-instantiated
+    // at the inner-fold boundary.  Same shape as compute_as1_plus_s2.
+    // Follow-up: factor inner accumulation into a helper function so the
+    // outer fold has a thin invariant, and discharge matrix bounds via
+    // the helper's precondition rather than via loop_invariant.
     hax_lib::fstar!("admit ()");
     for i in 0..rows_in_a {
         for j in 0..columns_in_a {
