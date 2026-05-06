@@ -323,6 +323,58 @@ let lemma_is_lane_range_poly_slice_intro
         Libcrux_ml_dsa.Polynomial.Spec.is_lane_range_poly lo hi (Seq.index arr k))
       (ensures is_lane_range_poly_slice lo hi arr)
   = reveal_opaque (`%is_lane_range_poly_slice) (is_lane_range_poly_slice lo hi arr)
+
+(* Bridge: lanes in [0, b] (asymmetric) imply |lane| <= b (symmetric).
+   Collapses the lane-range -> bounded-poly conversion to one call so
+   callers don't expand three nested Classical.forall_intro chains.
+   No SMTPats — caller invokes once at the call site that needs the
+   symmetric form. *)
+let lemma_lane_range_pos_to_bounded_poly
+      (#v_SIMDUnit: Type0)
+      (#[FStar.Tactics.Typeclasses.tcresolve ()]
+          i0:
+          Libcrux_ml_dsa.Simd.Traits.t_Operations v_SIMDUnit)
+      (b: usize)
+      (p: Libcrux_ml_dsa.Polynomial.t_PolynomialRingElement v_SIMDUnit)
+    : Lemma
+      (requires Libcrux_ml_dsa.Polynomial.Spec.is_lane_range_poly
+                  (mk_usize 0) b p)
+      (ensures Libcrux_ml_dsa.Polynomial.Spec.is_bounded_poly b p)
+  = let lemma_lane (j: nat{j < 32})
+        : Lemma (Spec.Utils.is_i32b_array_opaque (v b)
+                   (i0._super_i2.f_repr (Seq.index p.f_simd_units j))) =
+      let lane_arr = i0._super_i2.f_repr (Seq.index p.f_simd_units j) in
+      let aux_m (m: nat{m < 8})
+          : Lemma (Spec.Utils.is_i32b (v b) (Seq.index lane_arr m)) =
+        Libcrux_ml_dsa.Polynomial.Spec.lemma_is_lane_range_poly_lookup
+          (mk_usize 0) b p j m
+      in
+      Classical.forall_intro aux_m;
+      reveal_opaque (`%Spec.Utils.is_i32b_array_opaque)
+                    (Spec.Utils.is_i32b_array_opaque (v b) lane_arr)
+    in
+    Classical.forall_intro lemma_lane;
+    Libcrux_ml_dsa.Polynomial.Spec.lemma_is_bounded_poly_intro b p
+
+let lemma_lane_range_pos_to_bounded_poly_slice
+      (#v_SIMDUnit: Type0)
+      (#[FStar.Tactics.Typeclasses.tcresolve ()]
+          i0:
+          Libcrux_ml_dsa.Simd.Traits.t_Operations v_SIMDUnit)
+      (b: usize)
+      (arr: t_Slice (Libcrux_ml_dsa.Polynomial.t_PolynomialRingElement v_SIMDUnit))
+    : Lemma
+      (requires Libcrux_ml_dsa.Polynomial.Spec.is_lane_range_poly_slice
+                  (mk_usize 0) b arr)
+      (ensures Libcrux_ml_dsa.Polynomial.Spec.is_bounded_poly_slice b arr)
+  = let aux (k: nat{k < Seq.length arr})
+        : Lemma (Libcrux_ml_dsa.Polynomial.Spec.is_bounded_poly b (Seq.index arr k)) =
+      Libcrux_ml_dsa.Polynomial.Spec.lemma_is_lane_range_poly_slice_lookup
+        (mk_usize 0) b arr k;
+      lemma_lane_range_pos_to_bounded_poly b (Seq.index arr k)
+    in
+    Classical.forall_intro aux;
+    Libcrux_ml_dsa.Polynomial.Spec.lemma_is_bounded_poly_slice_intro b arr
 "#
         )
     )]

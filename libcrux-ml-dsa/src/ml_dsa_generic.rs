@@ -103,42 +103,14 @@ pub(crate) mod generic {
         let mut s1_s2 = [PolynomialRingElement::<SIMDUnit>::zero(); ROW_COLUMN];
         samplex4::sample_s1_and_s2::<SIMDUnit, Shake256X4>(ETA, seed_for_error_vectors, &mut s1_s2);
 
-        // Bridge `sample_s1_and_s2`'s post (per-lane `is_pos_array_opaque ETA`,
-        // ETA ∈ {2, 4}) to `is_bounded_poly_slice 4 s1_s2` for
-        // `compute_as1_plus_s2`'s pre.  ETA-bounded positive lanes [0, ETA] ⊂
-        // symmetric [-4, 4] = is_i32b 4.  Three-step lift: per-lane → per-poly
-        // → slice.
+        // Bridge `sample_s1_and_s2`'s post (asymmetric opaque atom
+        // `is_lane_range_poly_slice 0 eta_val s1_s2`) to the symmetric
+        // `is_bounded_poly_slice 4 s1_s2` form `compute_as1_plus_s2` wants.
+        // Soundness: lanes in [0, eta_val] ⊂ [-4, 4] since eta_val ≤ 4.
+        // One-shot via `lemma_lane_range_pos_to_bounded_poly_slice`.
         hax_lib::fstar!(
             r#"
-            let _:Prims.unit =
-              let l : nat = match ${ETA} with
-                | Libcrux_ml_dsa.Constants.Eta_Two -> 2
-                | Libcrux_ml_dsa.Constants.Eta_Four -> 4
-              in
-              let aux_lane (k: nat{k < Seq.length ${s1_s2}}) (j: nat{j < 32}) :
-                Lemma (Spec.Utils.is_i32b_array_opaque 4
-                         (i0._super_i2.f_repr (Seq.index (Seq.index ${s1_s2} k).f_simd_units j))) =
-                let arr = i0._super_i2.f_repr (Seq.index (Seq.index ${s1_s2} k).f_simd_units j) in
-                let aux_l (i: nat{i < 8}) :
-                  Lemma (Spec.Utils.is_i32b 4 (Seq.index arr i)) =
-                  Libcrux_ml_dsa.Simd.Traits.Specs.lemma_is_pos_array_lookup l arr i
-                in
-                Classical.forall_intro aux_l;
-                reveal_opaque (`%Spec.Utils.is_i32b_array_opaque)
-                              (Spec.Utils.is_i32b_array_opaque 4 arr)
-              in
-              Classical.forall_intro_2 aux_lane
-            in
-            let _:Prims.unit =
-              let aux_poly (k: nat{k < Seq.length ${s1_s2}}) :
-                Lemma (Libcrux_ml_dsa.Polynomial.Spec.is_bounded_poly (mk_usize 4)
-                         (Seq.index ${s1_s2} k)) =
-                Libcrux_ml_dsa.Polynomial.Spec.lemma_is_bounded_poly_intro
-                  (mk_usize 4) (Seq.index ${s1_s2} k)
-              in
-              Classical.forall_intro aux_poly
-            in
-            Libcrux_ml_dsa.Polynomial.Spec.lemma_is_bounded_poly_slice_intro
+            Libcrux_ml_dsa.Polynomial.Spec.lemma_lane_range_pos_to_bounded_poly_slice
               (mk_usize 4) ${s1_s2}
             "#
         );

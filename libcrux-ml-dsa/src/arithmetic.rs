@@ -62,25 +62,24 @@ pub(crate) fn shift_left_then_reduce<SIMDUnit: Operations, const SHIFT_BY: i32>(
     }
 }
 
+// Pre/post opacified: pre is `is_bounded_poly_slice FIELD_MAX` (was bare
+// double-forall on per-simd-unit FIELD_MAX); t0 post is
+// `is_bounded_poly_slice (pow2 12)` (closed form, was bare double-forall);
+// t1 post is `is_lane_range_poly_slice 0 1023` (was bare triple-forall +
+// `forall8`).  All three forms reuse existing opaque atoms in
+// polynomial.rs::spec — no new predicates.  Body remains admitted.
 #[inline(always)]
 #[hax_lib::fstar::before(r#"[@@ "opaque_to_smt"]"#)]
 #[hax_lib::requires(fstar!(r#"${t0.len()} == ${t1.len()} /\
-    (forall (i:nat). i < Seq.length t0 ==>
-      (forall (j:nat). j < 32 ==>
-        Spec.Utils.is_i32b_array_opaque
-          (v ${crate::simd::traits::specs::FIELD_MAX})
-          (i0._super_i2.f_repr (Seq.index (Seq.index t0 i).f_simd_units j))))"#))]
+    Libcrux_ml_dsa.Polynomial.Spec.is_bounded_poly_slice
+        (mk_usize 8380416) $t0"#))]
 #[hax_lib::ensures(|_| fstar!(r#"
     Seq.length ${t0}_future == Seq.length t0 /\
     Seq.length ${t1}_future == Seq.length t1 /\
-    (forall (i:nat). i < Seq.length ${t0}_future ==>
-      (forall (j:nat). j < 32 ==>
-        Spec.Utils.is_i32b_array_opaque (pow2 12)
-          (i0._super_i2.f_repr (Seq.index (Seq.index ${t0}_future i).f_simd_units j)) /\
-        Spec.Utils.forall8 (fun (k:nat{k < 8}) ->
-          let t1ij = Seq.index (Seq.index ${t1}_future i).Libcrux_ml_dsa.Polynomial.f_simd_units j in
-          v (Seq.index (i0._super_i2.f_repr t1ij) k) >= 0 /\
-          v (Seq.index (i0._super_i2.f_repr t1ij) k) < pow2 10)))"#))]
+    Libcrux_ml_dsa.Polynomial.Spec.is_bounded_poly_slice
+        (mk_usize 4096) ${t0}_future /\
+    Libcrux_ml_dsa.Polynomial.Spec.is_lane_range_poly_slice
+        (mk_usize 0) (mk_usize 1023) ${t1}_future"#))]
 #[hax_lib::fstar::verification_status(panic_free)]
 pub(crate) fn power2round_vector<SIMDUnit: Operations>(
     t0: &mut [PolynomialRingElement<SIMDUnit>],

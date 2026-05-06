@@ -81,10 +81,8 @@ pub(crate) fn add_domain_separator(slice: &[u8], indices: (u8, u8)) -> [u8; 34] 
 #[inline(always)]
 #[hax_lib::ensures(|_| fstar!(r#"
     Seq.length ${matrix}_future == Seq.length $matrix /\
-    (forall (k:nat). k < Seq.length ${matrix}_future ==>
-        (forall (j:nat). j < 32 ==>
-            Spec.Utils.is_i32b_array_opaque (v ${FIELD_MAX})
-                (i0._super_i2.f_repr (Seq.index (Seq.index ${matrix}_future k).f_simd_units j))))
+    Libcrux_ml_dsa.Polynomial.Spec.is_bounded_poly_slice
+        (mk_usize 8380416) ${matrix}_future
 "#))]
 pub(crate) fn sample_up_to_four_ring_elements_flat<
     SIMDUnit: Operations,
@@ -293,21 +291,17 @@ pub(crate) fn add_error_domain_separator(slice: &[u8], domain_separator: u16) ->
 
 // Body stays admitted (`admit ()` at start of body); the `ensures` is a
 // postulated postcondition that callers (`samplex4::sample_s1_and_s2`)
-// consume to discharge `signing_key::generate_serialized`'s `is_pos_array_opaque
-// eta` pre on `s1_2`.  The postulate is sound under the body invariant:
-// error vectors are rejection-sampled in [-eta, eta] (FIPS 204 Algorithm 31)
-// and stored in the shifted [0, 2*eta] form expected by the encoding layer
-// — which is exactly `is_pos_array_opaque eta` shape.
+// consume to discharge `signing_key::generate_serialized`'s pre on `s1_2`.
+// Exposed as the opaque `is_lane_range_poly_slice` atom so callers see one
+// premise instead of triple-forall + match expansion.
 #[inline(always)]
 #[hax_lib::ensures(|_| fstar!(r#"
     Seq.length ${re}_future == Seq.length $re /\
-    (forall (k:nat). k < Seq.length ${re}_future ==>
-        (forall (j:nat). j < 32 ==>
-            Libcrux_ml_dsa.Simd.Traits.Specs.is_pos_array_opaque
-                (match $eta with
-                 | Libcrux_ml_dsa.Constants.Eta_Two -> 2
-                 | Libcrux_ml_dsa.Constants.Eta_Four -> 4)
-                (i0._super_i2.f_repr (Seq.index (Seq.index ${re}_future k).f_simd_units j))))
+    (let eta_val : usize = match $eta with
+                            | Libcrux_ml_dsa.Constants.Eta_Two -> mk_usize 2
+                            | Libcrux_ml_dsa.Constants.Eta_Four -> mk_usize 4 in
+     Libcrux_ml_dsa.Polynomial.Spec.is_lane_range_poly_slice
+         (mk_usize 0) eta_val ${re}_future)
 "#))]
 pub(crate) fn sample_four_error_ring_elements<SIMDUnit: Operations, Shake256: shake256::XofX4>(
     eta: Eta,

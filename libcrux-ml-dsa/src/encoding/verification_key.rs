@@ -12,11 +12,8 @@ use crate::{
     Seq.length seed == 32 /\
     Seq.length t1 <= 8 /\
     Seq.length $verification_key_serialized == 32 + Seq.length t1 * 320 /\
-    (forall (k:nat). k < Seq.length t1 ==>
-      (forall (j:nat). j < 32 ==>
-        (forall (i:nat). i < 8 ==>
-          v (Seq.index (i0._super_i2.f_repr (Seq.index (Seq.index t1 k).f_simd_units j)) i) >= 0 /\
-          v (Seq.index (i0._super_i2.f_repr (Seq.index (Seq.index t1 k).f_simd_units j)) i) < pow2 10)))"#))]
+    Libcrux_ml_dsa.Polynomial.Spec.is_lane_range_poly_slice
+        (mk_usize 0) (mk_usize 1023) $t1"#))]
 #[hax_lib::ensures(|_| fstar!(r#"
     Seq.length ${verification_key_serialized}_future == Seq.length ${verification_key_serialized}"#))]
 pub(crate) fn generate_serialized<SIMDUnit: Operations>(
@@ -32,11 +29,8 @@ pub(crate) fn generate_serialized<SIMDUnit: Operations>(
               Seq.length $t1 <= 8 /\
               v $t1_len == Seq.length $t1 /\
               Seq.length $verification_key_serialized == 32 + Seq.length $t1 * 320 /\
-              (forall (k:nat). k < Seq.length $t1 ==>
-                (forall (j:nat). j < 32 ==>
-                  (forall (l:nat). l < 8 ==>
-                    v (Seq.index (i0._super_i2.f_repr (Seq.index (Seq.index $t1 k).f_simd_units j)) l) >= 0 /\
-                    v (Seq.index (i0._super_i2.f_repr (Seq.index (Seq.index $t1 k).f_simd_units j)) l) < pow2 10)))"#
+              Libcrux_ml_dsa.Polynomial.Spec.is_lane_range_poly_slice
+                  (mk_usize 0) (mk_usize 1023) $t1"#
         ));
         hax_lib::fstar!(
             r#"assert_norm (v $RING_ELEMENT_OF_T1S_SIZE == 320);
