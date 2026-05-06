@@ -24,6 +24,57 @@ function extract_all() {
              -i "+:libcrux_ml_dsa::hash_functions::*::*" \
              -i "-**::types::non_hax_impls::**" \
         fstar --z3rlimit 80
+
+    patch_matrix_typeclass libcrux-ml-dsa
+}
+
+# Post-extraction patch: hax extracts `ntt_dot_accumulate`'s inner fold
+# body with a tuple-state lambda `(a_as_ntt, result)` whose later
+# `update_at_usize result i (add_to_ring_element ... (result.[ i ] <:
+# T) ...)` line trips F*'s `Index` typeclass tactic under the heavy
+# ambient context.  Documented fix (sprint3.5-as1-attempt.md): in the
+# inner-fold body lambda only, rename binder `(result: t_Slice ...)`
+# to `(out: ...)` and add an explicit `(out <: t_Slice ...).[ i ]`
+# ascription on the indexing inside the `add_to_ring_element` call.
+# The patch is stored as a unified diff and applied with `git apply
+# --3way` so small line shifts (e.g. from spec annotation edits
+# upstream) don't break it; `--check` first lets us skip cleanly when
+# already applied.
+function patch_matrix_typeclass() {
+    TARGET="$1"
+    shift 1
+    go_to "$TARGET"
+
+    local target_file="proofs/fstar/extraction/Libcrux_ml_dsa.Matrix.fst"
+    local patch_file="proofs/fstar/extraction/Libcrux_ml_dsa.Matrix.typeclass.patch"
+
+    if [ ! -f "$target_file" ]; then
+        msg "$BLUE" "patch_matrix_typeclass: ${BOLD}$target_file${RESET} not found, skipping"
+        return
+    fi
+    if [ ! -f "$patch_file" ]; then
+        msg "$BLUE" "patch_matrix_typeclass: ${BOLD}$patch_file${RESET} not found, skipping"
+        return
+    fi
+
+    # Already applied?  Detect via the patched binder name.
+    if grep -q '^                  (out: t_Slice (Libcrux_ml_dsa\.Polynomial\.t_PolynomialRingElement v_SIMDUnit)) =$' "$target_file"; then
+        msg "$BLUE" "patch_matrix_typeclass: already applied, skipping"
+        return
+    fi
+
+    # Plain `git apply` (no `--3way` — Matrix.fst is gitignored, not in
+    # the index, so 3-way fallback can't resolve).  `--recount` lets the
+    # hunk header line counts drift if upstream Rust edits change Matrix.fst's
+    # extraction shape slightly.
+    if git apply --recount "$patch_file" 2>&1; then
+        msg "$BLUE" "patched ${BOLD}$target_file${RESET} (ntt_dot_accumulate typeclass workaround)"
+    else
+        msg "$RED" "patch_matrix_typeclass: ${BOLD}git apply${RESET} failed; refresh ${BOLD}$patch_file${RESET} or apply manually"
+        # Don't `exit 1` here — a stale patch shouldn't block extraction.
+        # Downstream `make check Matrix.fst` will surface the typeclass
+        # error if the patch didn't apply.
+    fi
 }
 
 function prove() {
