@@ -131,7 +131,32 @@ pub(crate) mod generic {
 
             let mut s1_ntt = [PolynomialRingElement::<SIMDUnit>::zero(); COLUMNS_IN_A];
             s1_ntt.copy_from_slice(&s1_s2[0..COLUMNS_IN_A]);
+            // Lift `is_bounded_poly_slice 8380416 s1_s2` (in scope from
+            // an earlier bridge) to `is_bounded_poly_slice 8380416 s1_ntt`
+            // via the copy_from_slice frame: s1_ntt[k] == s1_s2[k] for
+            // k in [0, COLUMNS_IN_A).
+            hax_lib::fstar!(
+                r#"
+                let _:Prims.unit =
+                  let aux (k: nat{k < Seq.length ${s1_ntt}}) :
+                    Lemma (Libcrux_ml_dsa.Polynomial.Spec.is_bounded_poly
+                             (mk_usize 8380416) (Seq.index ${s1_ntt} k)) =
+                    assert (Seq.index ${s1_ntt} k == Seq.index ${s1_s2} k);
+                    Libcrux_ml_dsa.Polynomial.Spec.lemma_is_bounded_poly_slice_lookup
+                      (mk_usize 8380416) ${s1_s2} k
+                  in
+                  Classical.forall_intro aux
+                in
+                Libcrux_ml_dsa.Polynomial.Spec.lemma_is_bounded_poly_slice_intro
+                  (mk_usize 8380416) ${s1_ntt}
+                "#
+            );
             for i in 0..s1_ntt.len() {
+                hax_lib::loop_invariant!(|i: usize| fstar!(
+                    r#"v $i <= Seq.length ${s1_ntt} /\
+                       Libcrux_ml_dsa.Polynomial.Spec.is_bounded_poly_slice
+                           (mk_usize 8380416) ${s1_ntt}"#
+                ));
                 ntt(&mut s1_ntt[i]);
             }
             compute_as1_plus_s2::<SIMDUnit>(
