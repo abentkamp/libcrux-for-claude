@@ -145,8 +145,6 @@ pub trait Select {
 
 #[cfg(any(hax, not(target_arch = "aarch64")))]
 mod portable {
-    use core::ops::{BitAnd, BitXor, Not};
-
     use super::{Select, Swap};
     use crate::Declassify;
     #[cfg(feature = "check-secret-independence")]
@@ -186,7 +184,7 @@ mod portable {
             #[cfg(feature = "check-secret-independence")]
             impl Select for [$secret_ty] {
                 fn select(&mut self, other: &Self, selector: crate::U8) {
-                    let mask = $cast(ct_mask(selector));
+                    let mask: $secret_ty = $cast(ct_mask(selector));
                     for i in 0..self.len() {
                         self[i] = (mask & self[i]) | (!mask & other[i]);
                     }
@@ -200,22 +198,6 @@ mod portable {
     impl_select!(u32, U32, CastOps::as_u32);
     impl_select!(u64, U64, CastOps::as_u64);
 
-    fn ct_swap_loop<T, S>(lhs: &mut [T], rhs: &mut [T], mask: S, declassify: impl Fn(S) -> T)
-    where
-        S: Copy + Not<Output = S> + BitAnd<T, Output = S> + BitXor<T, Output = S>,
-        T: Copy + BitXor<Output = T> + BitAnd<Output = T> + Not<Output = T>,
-    {
-        // XXX Should this be a debug_assert or a real assert? With the current version
-        // the indexing will panic if rhs.len() < lhs.len() but not when lhs.len() < rhs.len()
-        // in release mode
-        debug_assert_eq!(lhs.len(), rhs.len());
-        for i in 0..lhs.len() {
-            let dummy = !mask & (lhs[i] ^ rhs[i]);
-            lhs[i] = declassify(dummy ^ lhs[i]);
-            rhs[i] = declassify(dummy ^ rhs[i]);
-        }
-    }
-
     /// This macro implements `Swap` for public integer type
     /// `&[$ty]` and its secret version `&[$secret_ty]`.
     macro_rules! impl_swap {
@@ -223,8 +205,17 @@ mod portable {
             impl Swap for [$ty] {
                 #[inline]
                 fn cswap(&mut self, other: &mut Self, selector: U8) {
-                    let mask = $cast(ct_mask(selector));
-                    ct_swap_loop(self, other, mask, Declassify::declassify);
+                    debug_assert_eq!(self.len(), other.len());
+                    let mask: $secret_ty = $cast(ct_mask(selector));
+                    for i in 0..self.len() {
+                        // if selector == 0, then mask == 0b111..11
+                        // then dummy = 0 and we don't swap
+                        // otherwise, dummy = (self[i] ^ other[i])
+                        // and we swap
+                        let dummy: $secret_ty = !mask & (self[i] ^ other[i]);
+                        self[i] = (dummy ^ self[i]).declassify();
+                        other[i] = (dummy ^ other[i]).declassify();
+                    }
                 }
             }
 
@@ -232,10 +223,13 @@ mod portable {
             impl Swap for [$secret_ty] {
                 #[inline]
                 fn cswap(&mut self, other: &mut Self, selector: U8) {
-                    let mask = $cast(ct_mask(selector));
-                    // Here the generic parameters S and T are both `Secret`, so we
-                    // don't need (and don't want!) to declassify
-                    ct_swap_loop(self, other, mask, core::convert::identity);
+                    debug_assert_eq!(self.len(), other.len());
+                    let mask: $secret_ty = $cast(ct_mask(selector));
+                    for i in 0..self.len() {
+                        let dummy: $secret_ty = !mask & (self[i] ^ other[i]);
+                        self[i] = dummy ^ self[i];
+                        other[i] = dummy ^ other[i];
+                    }
                 }
             }
         };
