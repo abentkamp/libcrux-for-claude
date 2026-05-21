@@ -158,7 +158,16 @@ mod portable {
     /// If selector != 0 -> mask = 0b000..00
     // Don't inline this to avoid that the compiler optimizes this out.
     #[inline(never)]
-    fn ct_mask(selector: U8) -> U64 {
+    fn ct_mask32(selector: U8) -> U32 {
+        let selector = black_box(selector);
+        let is_non_zero = (!selector.as_u32()).wrapping_add(U32(1)) >> 31;
+        let is_non_zero = black_box(is_non_zero);
+        let mask = is_non_zero.wrapping_sub(1);
+        mask.as_u32()
+    }
+
+    #[inline(never)]
+    fn ct_mask64(selector: U8) -> U64 {
         let selector = black_box(selector);
         let is_non_zero = (!selector.as_u64()).wrapping_add(U64(1)) >> 63;
         let is_non_zero = black_box(is_non_zero);
@@ -169,10 +178,10 @@ mod portable {
     /// This macro implements `Select` for public integer type
     /// `&[$ty]` and its secret version `&[$secret_ty]`.
     macro_rules! impl_select {
-        ($ty:ty, $secret_ty:ident, $cast:path) => {
+        ($ty:ty, $secret_ty:ident, $mask_fn:ident, $cast:path) => {
             impl Select for [$ty] {
                 fn select(&mut self, other: &Self, selector: crate::U8) {
-                    let mask: $secret_ty = $cast(ct_mask(selector));
+                    let mask: $secret_ty = $cast($mask_fn(selector));
                     for i in 0..self.len() {
                         // if selector == 0, then mask is 0b111..11 and we select self[i],
                         // otherwise mask is 0b000..00 and we select other[i]
@@ -184,7 +193,7 @@ mod portable {
             #[cfg(feature = "check-secret-independence")]
             impl Select for [$secret_ty] {
                 fn select(&mut self, other: &Self, selector: crate::U8) {
-                    let mask: $secret_ty = $cast(ct_mask(selector));
+                    let mask: $secret_ty = $cast($mask_fn(selector));
                     for i in 0..self.len() {
                         self[i] = (mask & self[i]) | (!mask & other[i]);
                     }
@@ -193,20 +202,20 @@ mod portable {
         };
     }
 
-    impl_select!(u8, U8, CastOps::as_u8);
-    impl_select!(u16, U16, CastOps::as_u16);
-    impl_select!(u32, U32, CastOps::as_u32);
-    impl_select!(u64, U64, CastOps::as_u64);
+    impl_select!(u8, U8, ct_mask32, CastOps::as_u8);
+    impl_select!(u16, U16, ct_mask32, CastOps::as_u16);
+    impl_select!(u32, U32, ct_mask32, CastOps::as_u32);
+    impl_select!(u64, U64, ct_mask64, CastOps::as_u64);
 
     /// This macro implements `Swap` for public integer type
     /// `&[$ty]` and its secret version `&[$secret_ty]`.
     macro_rules! impl_swap {
-        ($ty:ty, $secret_ty:ty, $cast:expr) => {
+        ($ty:ty, $secret_ty:ty, $mask_fn:ident, $cast:expr) => {
             impl Swap for [$ty] {
                 #[inline]
                 fn cswap(&mut self, other: &mut Self, selector: U8) {
                     debug_assert_eq!(self.len(), other.len());
-                    let mask: $secret_ty = $cast(ct_mask(selector));
+                    let mask: $secret_ty = $cast($mask_fn(selector));
                     for i in 0..self.len() {
                         // if selector == 0, then mask == 0b111..11
                         // then dummy = 0 and we don't swap
@@ -224,7 +233,7 @@ mod portable {
                 #[inline]
                 fn cswap(&mut self, other: &mut Self, selector: U8) {
                     debug_assert_eq!(self.len(), other.len());
-                    let mask: $secret_ty = $cast(ct_mask(selector));
+                    let mask: $secret_ty = $cast($mask_fn(selector));
                     for i in 0..self.len() {
                         let dummy: $secret_ty = !mask & (self[i] ^ other[i]);
                         self[i] = dummy ^ self[i];
@@ -235,10 +244,10 @@ mod portable {
         };
     }
 
-    impl_swap!(u8, U8, CastOps::as_u8);
-    impl_swap!(u16, U16, CastOps::as_u16);
-    impl_swap!(u32, U32, CastOps::as_u32);
-    impl_swap!(u64, U64, CastOps::as_u64);
+    impl_swap!(u8, U8, ct_mask32, CastOps::as_u8);
+    impl_swap!(u16, U16, ct_mask32, CastOps::as_u16);
+    impl_swap!(u32, U32, ct_mask32, CastOps::as_u32);
+    impl_swap!(u64, U64, ct_mask64, CastOps::as_u64);
 }
 
 #[cfg(all(not(hax), target_arch = "aarch64"))]
