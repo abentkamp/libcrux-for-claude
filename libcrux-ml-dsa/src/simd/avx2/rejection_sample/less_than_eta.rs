@@ -61,6 +61,10 @@ pub(crate) fn sample<const ETA: usize>(input: &[u8], output: &mut [i32]) -> usiz
     // - mldsa-native: https://github.com/pq-code-package/mldsa-native/blob/0591fe06832418f8a320d5a1533327df063185cf/dev/x86_64/meta.h#L130
     // - Dilithium reference implementation: https://github.com/pq-crystals/dilithium/blob/6e00625c5b29f516c6de973fe2ee2fbb150973f9/avx2/rejsample.c#L312
     //
+    // It should be noted that the declassification of the comparison
+    // result here does not (and must not) declassify the sampled
+    // coefficients.
+    //
     // While we do not consider protection against power
     // side-channels in scope for libcrux, at this point, a
     // hardened implementation of sampling mod p can be found in
