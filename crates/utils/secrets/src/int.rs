@@ -130,6 +130,9 @@ pub trait Swap {
     /// Depending on `selector`, keep everything as is, or swap `self` and `other`.
     ///
     /// If `selector == 0`, the values are unchanged, otherwise swap.
+    ///
+    /// # Panics
+    /// If `self.len() != other.len()`.
     fn cswap(&mut self, other: &mut Self, selector: U8);
 }
 
@@ -140,6 +143,9 @@ pub trait Select {
     ///
     /// If `selector != 0`, select `other`, otherwise
     /// `self` is unchanged.
+    ///
+    /// # Panics
+    /// If `self.len() != other.len()`.
     fn select(&mut self, other: &Self, selector: U8);
 }
 
@@ -181,6 +187,7 @@ mod portable {
         ($ty:ty, $secret_ty:ident, $mask_fn:ident, $cast:path) => {
             impl Select for [$ty] {
                 fn select(&mut self, other: &Self, selector: crate::U8) {
+                    assert_eq!(self.len(), other.len());
                     let mask: $secret_ty = $cast($mask_fn(selector));
                     for i in 0..self.len() {
                         // if selector == 0, then mask is 0b111..11 and we select self[i],
@@ -193,6 +200,7 @@ mod portable {
             #[cfg(feature = "check-secret-independence")]
             impl Select for [$secret_ty] {
                 fn select(&mut self, other: &Self, selector: crate::U8) {
+                    assert_eq!(self.len(), other.len());
                     let mask: $secret_ty = $cast($mask_fn(selector));
                     for i in 0..self.len() {
                         self[i] = (mask & self[i]) | (!mask & other[i]);
@@ -427,6 +435,7 @@ mod aarch64 {
     impl<T: Swap> Swap for [T] {
         #[inline]
         fn cswap(&mut self, other: &mut Self, selector: U8) {
+            assert_eq!(self.len(), other.len());
             for i in 0..self.len() {
                 (&mut self[i]).cswap(&mut other[i], selector);
             }
