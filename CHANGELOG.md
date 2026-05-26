@@ -13,7 +13,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
-- [#1446](https://github.com/cryspen/libcrux/pull/1446): Remove const qualifier of secret types constructors
+- (libcrux-secrets) [#1446](https://github.com/cryspen/libcrux/pull/1446): Remove const qualifier of secret types constructors
 
 ## [0.0.4] (2026-05-13)
 
