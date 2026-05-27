@@ -110,6 +110,8 @@ files:
       monomorphizations_exact:
         - [core, option, Option_e70]
         - [ Eurydice, arr_f8]
+        - [libcrux_secrets, mem_requests, ct_declassify_040]
+        - [libcrux_secrets, mem_requests, ct_declassify_17]
 
   - name: libcrux_mldsa65_portable
     inline_static: true
@@ -136,6 +138,7 @@ files:
         - [libcrux_ml_dsa, pre_hash, PreHashResult]
         - [core, result, Result_a8]
         - [core, option, Option_84]
+        - [libcrux_secrets, mem_requests, ct_declassify_04]
 
   # MLDSA: catch-all for things that have not matched earlier
   - name: libcrux_mldsa_core
@@ -143,8 +146,10 @@ files:
     private:
       monomorphizations_of:
         - [Eurydice, "*" ]
+        - [libcrux_secrets, "*"]
       patterns:
         - [Eurydice, "*" ]
+        - [libcrux_secrets, "*"]
 naming:
   skip_prefix:
     - [ core, core_arch, arm_shared, neon ]
