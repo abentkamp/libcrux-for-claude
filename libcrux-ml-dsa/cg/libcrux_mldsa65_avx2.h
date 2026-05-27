@@ -8,7 +8,7 @@
  * Eurydice: b227478b67c6a6e2ff611f978f10d6b7f26472ac
  * Karamel: 4e64d915da3c172d1dfad805b8e1a46beff938bc
  * F*: unset
- * Libcrux: dirty
+ * Libcrux: 1d9989fe8201ecb97d791f2d5d054c6e9277b382
  */
 
 #ifndef libcrux_mldsa65_avx2_H
@@ -837,6 +837,18 @@ libcrux_ml_dsa_simd_avx2_encoding_error_deserialize_to_unsigned(
   return libcrux_ml_dsa_simd_avx2_encoding_error_deserialize_to_unsigned_when_eta_is_2(
       serialized);
 }
+
+/**
+ Declassify secret memory.
+
+ No-op if `valgrind_ct_test` cfg is not enabled.
+*/
+/**
+A monomorphic instance of libcrux_ml_dsa.ct_test.ct_declassify
+with types core_core_arch_x86___m256i
+
+*/
+void libcrux_ml_dsa_ct_test_ct_declassify_17(const __m256i *val);
 
 /**
 A monomorphic instance of
@@ -4448,6 +4460,21 @@ static inline Eurydice_dst_ref_mut_2a Eurydice_array_to_slice_mut_716(
 }
 
 /**
+ Declassify secret memory.
+
+ No-op if `valgrind_ct_test` cfg is not enabled.
+*/
+/**
+A monomorphic instance of libcrux_ml_dsa.ct_test.ct_declassify
+with types Eurydice_arr libcrux_ml_dsa_polynomial_PolynomialRingElement
+libcrux_ml_dsa_simd_avx2_vector_type_Vec256[[$6size_t]]
+
+*/
+KRML_ATTRIBUTE_TARGET("avx2")
+static inline void libcrux_ml_dsa_ct_test_ct_declassify_040(
+    const Eurydice_arr_b50 *val) {}
+
+/**
 A monomorphic instance of libcrux_ml_dsa.arithmetic.power2round_vector
 with types libcrux_ml_dsa_simd_avx2_vector_type_Vec256
 with const generics
@@ -5503,21 +5530,6 @@ libcrux_ml_dsa_arithmetic_vector_infinity_norm_exceeds_64(
   }
   return result;
 }
-
-/**
- Declassify secret memory.
-
- No-op if `valgrind_ct_test` cfg is not enabled.
-*/
-/**
-A monomorphic instance of libcrux_ml_dsa.ct_test.ct_declassify
-with types Eurydice_arr libcrux_ml_dsa_polynomial_PolynomialRingElement
-libcrux_ml_dsa_simd_avx2_vector_type_Vec256[[$6size_t]]
-
-*/
-KRML_ATTRIBUTE_TARGET("avx2")
-static inline void libcrux_ml_dsa_ct_test_ct_declassify_040(
-    const Eurydice_arr_b50 *val) {}
 
 /**
 This function found in impl
