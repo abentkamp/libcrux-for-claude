@@ -35,4 +35,4 @@ rand = { version = "0.10", optional = true, default-features = false, features =
 ] }
 
 [dev-dependencies]
-cavp = { path = "../../../cavp" }
+libcrux-kats = { workspace = true, features = ["drbg"] }

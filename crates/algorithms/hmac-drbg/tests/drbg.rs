@@ -1,7 +1,7 @@
-use cavp::drbg::HmacDrbgTest;
 use libcrux_hmac_drbg::{
     GenerateError, HmacDrbgSha256, HmacDrbgSha384, HmacDrbgSha512, MAX_GENERATE_BYTES,
 };
+use libcrux_kats::cavp::drbg::HmacDrbgTest;
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -29,8 +29,9 @@ fn make_sha512() -> HmacDrbgSha512 {
     HmacDrbgSha512::new(&alt_entropy::<64>(), &[0u8; 32], &[]).unwrap()
 }
 
-fn run_kat(t: &HmacDrbgTest, expected: &[u8]) {
+fn run_kat(t: &HmacDrbgTest, expected: &[u8]) -> usize {
     // Dispatch on hash, run two generate calls, check returned_bits.
+    let mut ran_test = 0;
     match t.hash.as_str() {
         "SHA-256" => {
             let mut drbg =
@@ -57,6 +58,7 @@ fn run_kat(t: &HmacDrbgTest, expected: &[u8]) {
             )
             .unwrap();
             assert_eq!(out, expected, "SHA-256 COUNT={}", t.count);
+            ran_test = 1;
         }
 
         "SHA-384" => {
@@ -84,6 +86,7 @@ fn run_kat(t: &HmacDrbgTest, expected: &[u8]) {
             )
             .unwrap();
             assert_eq!(out, expected, "SHA-384 COUNT={}", t.count);
+            ran_test = 1;
         }
 
         "SHA-512" => {
@@ -111,9 +114,13 @@ fn run_kat(t: &HmacDrbgTest, expected: &[u8]) {
             )
             .unwrap();
             assert_eq!(out, expected, "SHA-512 COUNT={}", t.count);
+            ran_test = 1;
         }
-        _ => {} // SHA-1, SHA-224, SHA-512/224, SHA-512/256 — not supported, skip
+        s => {
+            eprintln!("Skipping test for hash function {s}.")
+        } // SHA-1, SHA-224, SHA-512/224, SHA-512/256 — not supported, skip
     }
+    ran_test
 }
 
 // ---------------------------------------------------------------------------
@@ -123,11 +130,13 @@ fn run_kat(t: &HmacDrbgTest, expected: &[u8]) {
 #[test]
 fn kat() {
     // Supported: "SHA-256", "SHA-384", "SHA-512"
-    let tv = cavp::drbg::HmacDrbg::new().unwrap();
+    let tv = libcrux_kats::cavp::drbg::HmacDrbg::new().unwrap();
     assert!(!tv.tests.is_empty(), "no supported test vectors found");
+    let mut test_count = 0;
     for t in &tv.tests {
-        run_kat(t, &t.returned_bits);
+        test_count += run_kat(t, &t.returned_bits);
     }
+    eprintln!("Ran {test_count} / {} tests", tv.tests.len());
 }
 
 // ---------------------------------------------------------------------------

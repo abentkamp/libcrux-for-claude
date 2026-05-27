@@ -42,11 +42,11 @@ pub struct HmacDrbgTest {
 #[derive(Debug, Clone, Default)]
 pub struct HmacDrbg {}
 
-const VECTORS: &str = include_str!("../kats/HMAC_DRBG.rsp");
+const VECTORS: &str = include_str!("../../tv/drbg/HMAC_DRBG.rsp");
 
 impl HmacDrbg {
     pub fn new() -> Result<TestVector<Self>, Error> {
-        crate::read_string(VECTORS)
+        crate::cavp::read_string(VECTORS)
     }
 }
 

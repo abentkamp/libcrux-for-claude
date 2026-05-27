@@ -13,6 +13,7 @@ use std::{
 };
 
 /// HMAC_DRBG test vectors (SP 800-90A Rev 1)
+#[cfg(feature = "drbg")]
 pub mod drbg;
 
 /// Read a test vector file.
