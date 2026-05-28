@@ -8,7 +8,7 @@
  * Eurydice: b227478b67c6a6e2ff611f978f10d6b7f26472ac
  * Karamel: 4e64d915da3c172d1dfad805b8e1a46beff938bc
  * F*: 32dcc97722b61224e0e9c5b447ca72c4cd9ffcf9
- * Libcrux: dc3acb91f95df539456687a4c0965566e29e77f8
+ * Libcrux: b702958213d527b78100ce2afd5d7d83451688dd
  */
 
 #ifndef libcrux_mldsa65_portable_H
@@ -1153,18 +1153,6 @@ libcrux_ml_dsa_simd_portable_rejection_sample_less_than_field_modulus_65(
   return libcrux_ml_dsa_simd_portable_sample_rejection_sample_less_than_field_modulus(
       randomness, out);
 }
-
-/**
- Declassify secret memory.
-
- No-op if `valgrind_ct_test` cfg is not enabled.
-*/
-/**
-A monomorphic instance of libcrux_ml_dsa.ct_test.ct_declassify
-with types bool
-
-*/
-void libcrux_ml_dsa_ct_test_ct_declassify_5f(const bool *val);
 
 static KRML_MUSTINLINE size_t
 libcrux_ml_dsa_simd_portable_sample_rejection_sample_less_than_eta_equals_2(
@@ -3937,30 +3925,6 @@ static inline void libcrux_ml_dsa_simd_portable_barrett_reduce_simd_unit_65(
   libcrux_ml_dsa_simd_portable_arithmetic_barrett_reduce_simd_unit(simd_unit);
 }
 
-/**
- Mark memory as secret.
-
- No-op if `valgrind_ct_test` cfg is not enabled.
-*/
-/**
-A monomorphic instance of libcrux_ml_dsa.ct_test.ct_classify
-with types Eurydice_arr uint8_t[[$32size_t]]
-
-*/
-void libcrux_ml_dsa_ct_test_ct_classify_62(const Eurydice_arr_60 *val);
-
-/**
- Declassify secret memory.
-
- No-op if `valgrind_ct_test` cfg is not enabled.
-*/
-/**
-A monomorphic instance of libcrux_ml_dsa.ct_test.ct_declassify
-with types Eurydice_derefed_slice uint8_t
-
-*/
-void libcrux_ml_dsa_ct_test_ct_declassify_45(const uint8_t (*val)[]);
-
 typedef struct Eurydice_borrow_slice_u8_x2_s {
   Eurydice_borrow_slice_u8 fst;
   Eurydice_borrow_slice_u8 snd;
@@ -4865,12 +4829,12 @@ static inline Eurydice_dst_ref_mut_e7 Eurydice_array_to_slice_mut_712(
  No-op if `valgrind_ct_test` cfg is not enabled.
 */
 /**
-A monomorphic instance of libcrux_ml_dsa.ct_test.ct_declassify
+A monomorphic instance of libcrux_secrets.mem_requests.ct_declassify
 with types Eurydice_arr libcrux_ml_dsa_polynomial_PolynomialRingElement
 libcrux_ml_dsa_simd_portable_vector_type_Coefficients[[$6size_t]]
 
 */
-static inline void libcrux_ml_dsa_ct_test_ct_declassify_04(
+static KRML_MUSTINLINE void libcrux_secrets_mem_requests_ct_declassify_04(
     const Eurydice_arr_a3 *val) {}
 
 /**
@@ -5239,30 +5203,6 @@ static inline void libcrux_ml_dsa_ml_dsa_65_portable_generate_key_pair_mut(
   libcrux_ml_dsa_ml_dsa_generic_instantiations_portable_ml_dsa_65_generate_key_pair(
       randomness, signing_key, verification_key);
 }
-
-/**
- Mark memory as secret.
-
- No-op if `valgrind_ct_test` cfg is not enabled.
-*/
-/**
-A monomorphic instance of libcrux_ml_dsa.ct_test.ct_classify
-with types Eurydice_derefed_slice uint8_t
-
-*/
-void libcrux_ml_dsa_ct_test_ct_classify_45(const uint8_t (*val)[]);
-
-/**
- Declassify secret memory.
-
- No-op if `valgrind_ct_test` cfg is not enabled.
-*/
-/**
-A monomorphic instance of libcrux_ml_dsa.ct_test.ct_declassify
-with types Eurydice_arr uint8_t[[$48size_t]]
-
-*/
-void libcrux_ml_dsa_ct_test_ct_declassify_7d(const Eurydice_arr_5f *val);
 
 /**
 A monomorphic instance of core.result.Result
