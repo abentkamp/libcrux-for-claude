@@ -53,15 +53,21 @@ or bound-propagation) work, not a bare admit removal:
    panic_free, ensures auto-admitted = no bounds at all). Closing them requires
    strengthening the inner ensures to 4211177 and propagating — real work.
 
-3. **rejection_sample dispatchers** (avx2.rs:712/725/738, portable.rs ~532/544):
-   ⚠️ SOUNDNESS TRAP. Dispatcher `requires Seq.length randomness / 3 <= …` but
-   calls inner `sample` which `requires input.len() == 24` (avx2 field_modulus)
-   / `== 4` (eta). The admit() masks a precondition GAP — the dispatcher's pre
-   is too weak to discharge the inner's exact-length pre. Also the dispatcher's
-   bounds ensures (`v out[i] ∈ [0,8380417)`) is NOT in the inner `sample`
-   ensures (which is only `future(output).len()==output.len() && result<=8`).
-   Before un-admitting, audit the generic caller (does it always pass 24/4-byte
-   chunks?) and likely tighten the dispatcher `requires` to `== 24`/`== 4`.
+3. **rejection_sample dispatchers** — ✅ REVIEWED + PORTABLE CLOSED (commit
+   `62a48d46d`). The spec gap was real (the weak `len/3` requires couldn't prove
+   the trait's own `result<=8`; the admit masked an *unprovable* VC) but NOT a
+   runtime bug (sole caller sample.rs passes exact 24-byte / 4-byte chunks).
+   Fix: tightened trait + both dispatcher `requires` to `Seq.length randomness
+   == 24` / `== 4` (sound — verified the generic caller discharges it). Then
+   closed the 3 PORTABLE dispatchers by augmenting the portable inner sample fns'
+   ensures (length-pres + result<=len/k + per-element bounds, all from existing
+   invariant facts) and removing their admit().
+   - **AVX2 rejection_sample dispatchers STILL admit()** (avx2.rs:713/727/741):
+     the requires-gap is now closed (input.len()==24 discharges), but their
+     bounds `ensures` needs the AVX2 inner `sample` (rejection_sample/*.rs) to
+     prove per-element [0,q)/[-2,2]/[-4,4] — currently it only proves
+     length+result<=8 AND carries 4 `assume()` count_ones holes each. Closing
+     AVX2 = strengthen the AVX2 inner (bitvector: cmpgt-mask → bound). Open.
 
 ## Recommended next mechanical-ish target
 None obvious in avx2 simd-top/encoding. Candidates worth scoping fresh:
