@@ -188,6 +188,7 @@ pub(crate) trait Operations: Copy + Clone + Repr {
     // Since each coefficient could potentially be sampled with 3 bytes, we expect
     // `randomness` to hold 24 bytes.
     #[hax_lib::requires(fstar!(r#"
+        Seq.length $randomness == 24 /\
         Seq.length $randomness / 3 <= 4294967295 /\
         Seq.length $randomness / 3 <= Seq.length $out"#))]
     #[hax_lib::ensures(|result| fstar!(r#"v $result <= 8 /\
@@ -200,6 +201,7 @@ pub(crate) trait Operations: Copy + Clone + Repr {
     // Since each coefficient could potentially be sampled with half a byte,
     // we expect `randomness` to hold 4 bytes.
     #[hax_lib::requires(fstar!(r#"
+        Seq.length $randomness == 4 /\
         Seq.length $randomness * 2 <= 4294967295 /\
         Seq.length $randomness * 2 <= Seq.length $out"#))]
     #[hax_lib::ensures(|result| fstar!(r#"v $result <= 8 /\
@@ -209,6 +211,7 @@ pub(crate) trait Operations: Copy + Clone + Repr {
     fn rejection_sample_less_than_eta_equals_2(randomness: &[u8], out: &mut [i32]) -> usize;
 
     #[hax_lib::requires(fstar!(r#"
+        Seq.length $randomness == 4 /\
         Seq.length $randomness * 2 <= 4294967295 /\
         Seq.length $randomness * 2 <= Seq.length $out"#))]
     #[hax_lib::ensures(|result| fstar!(r#"v $result <= 8 /\

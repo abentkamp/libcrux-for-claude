@@ -701,6 +701,7 @@ impl Operations for AVX2SIMDUnit {
 
     #[inline(always)]
     #[requires(fstar!(r#"
+        Seq.length $randomness == 24 /\
         Seq.length $randomness / 3 <= 4294967295 /\
         Seq.length $randomness / 3 <= Seq.length $out"#))]
     #[ensures(|result| fstar!(r#"v $result <= 8 /\
@@ -715,6 +716,7 @@ impl Operations for AVX2SIMDUnit {
 
     #[inline(always)]
     #[requires(fstar!(r#"
+        Seq.length $randomness == 4 /\
         Seq.length $randomness * 2 <= 4294967295 /\
         Seq.length $randomness * 2 <= Seq.length $out"#))]
     #[ensures(|result| fstar!(r#"v $result <= 8 /\
@@ -728,6 +730,7 @@ impl Operations for AVX2SIMDUnit {
 
     #[inline(always)]
     #[requires(fstar!(r#"
+        Seq.length $randomness == 4 /\
         Seq.length $randomness * 2 <= 4294967295 /\
         Seq.length $randomness * 2 <= Seq.length $out"#))]
     #[ensures(|result| fstar!(r#"v $result <= 8 /\

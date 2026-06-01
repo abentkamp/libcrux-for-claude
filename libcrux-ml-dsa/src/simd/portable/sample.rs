@@ -5,7 +5,12 @@ use crate::specs::simd::portable::sample::*;
 
 #[inline(always)]
 #[hax_lib::requires(rejection_sample_less_than_field_modulus_pre(randomness, out))]
-#[hax_lib::ensures(|r| rejection_sample_less_than_field_modulus_post(randomness, future(out), r))]
+#[hax_lib::ensures(|r| fstar!(r#"
+    Libcrux_ml_dsa.Specs.Simd.Portable.Sample.rejection_sample_less_than_field_modulus_post $randomness ${out}_future $r /\
+    Seq.length ${out}_future == Seq.length $out /\
+    v $r <= Seq.length $randomness / 3 /\
+    (forall (i:nat{i < Seq.length ${out}_future}). i < v $r ==>
+       v (Seq.index ${out}_future i) >= 0 /\ v (Seq.index ${out}_future i) < 8380417)"#))]
 pub fn rejection_sample_less_than_field_modulus(randomness: &[u8], out: &mut [i32]) -> usize {
     let mut sampled = 0;
 
@@ -21,6 +26,8 @@ pub fn rejection_sample_less_than_field_modulus(randomness: &[u8], out: &mut [i3
                 r#"
               v $sampled <= v $i /\
               Seq.length $out == v $_out_len /\
+              (forall (j:nat{j < Seq.length ${out}}). j < v $sampled ==>
+                 v (Seq.index $out j) >= 0 /\ v (Seq.index $out j) < 8380417) /\
               (let samples = Spec.Utils.repeati ($i)
                 (Spec.MLDSA.Math.rejection_sample_field_modulus_inner $randomness) Seq.empty in
               v $sampled == Seq.length samples /\
@@ -57,7 +64,12 @@ pub fn rejection_sample_less_than_field_modulus(randomness: &[u8], out: &mut [i3
 #[inline(always)]
 #[hax_lib::fstar::options("--z3rlimit 800 --ext context_pruning --z3refresh")]
 #[hax_lib::requires(rejection_sample_less_than_eta_equals_2_pre(randomness, out))]
-#[hax_lib::ensures(|r| rejection_sample_less_than_eta_equals_2_post(randomness, future(out), r))]
+#[hax_lib::ensures(|r| fstar!(r#"
+    Libcrux_ml_dsa.Specs.Simd.Portable.Sample.rejection_sample_less_than_eta_equals_2_post $randomness ${out}_future $r /\
+    Seq.length ${out}_future == Seq.length $out /\
+    v $r <= Seq.length $randomness * 2 /\
+    (forall (i:nat{i < Seq.length ${out}_future}). i < v $r ==>
+       v (Seq.index ${out}_future i) >= -2 /\ v (Seq.index ${out}_future i) <= 2)"#))]
 pub fn rejection_sample_less_than_eta_equals_2(randomness: &[u8], out: &mut [i32]) -> usize {
     let mut sampled = 0;
 
@@ -74,6 +86,8 @@ pub fn rejection_sample_less_than_eta_equals_2(randomness: &[u8], out: &mut [i32
               v $i >= 0 /\ v $i <= Seq.length $randomness /\
               v $sampled <= v $i * 2 /\
               Seq.length $out == v $_out_len /\
+              (forall (j:nat{j < Seq.length ${out}}). j < v $sampled ==>
+                 v (Seq.index $out j) >= -2 /\ v (Seq.index $out j) <= 2) /\
               (let samples = Spec.Utils.repeati ($i)
                 (Spec.MLDSA.Math.rejection_sample_eta_2_inner $randomness) Seq.empty in
               v $sampled == Seq.length samples /\
@@ -130,7 +144,12 @@ pub fn rejection_sample_less_than_eta_equals_2(randomness: &[u8], out: &mut [i32
 #[inline(always)]
 #[hax_lib::fstar::options("--ext context_pruning --z3refresh")]
 #[hax_lib::requires(rejection_sample_less_than_eta_equals_4_pre(randomness, out))]
-#[hax_lib::ensures(|r| rejection_sample_less_than_eta_equals_4_post(randomness, future(out), r))]
+#[hax_lib::ensures(|r| fstar!(r#"
+    Libcrux_ml_dsa.Specs.Simd.Portable.Sample.rejection_sample_less_than_eta_equals_4_post $randomness ${out}_future $r /\
+    Seq.length ${out}_future == Seq.length $out /\
+    v $r <= Seq.length $randomness * 2 /\
+    (forall (i:nat{i < Seq.length ${out}_future}). i < v $r ==>
+       v (Seq.index ${out}_future i) >= -4 /\ v (Seq.index ${out}_future i) <= 4)"#))]
 pub fn rejection_sample_less_than_eta_equals_4(randomness: &[u8], out: &mut [i32]) -> usize {
     let mut sampled = 0;
 
@@ -147,6 +166,8 @@ pub fn rejection_sample_less_than_eta_equals_4(randomness: &[u8], out: &mut [i32
               v $i >= 0 /\ v $i <= Seq.length $randomness /\
               v $sampled <= v $i * 2 /\
               Seq.length $out == v $_out_len /\
+              (forall (j:nat{j < Seq.length ${out}}). j < v $sampled ==>
+                 v (Seq.index $out j) >= -4 /\ v (Seq.index $out j) <= 4) /\
               (let samples = Spec.Utils.repeati ($i)
                 (Spec.MLDSA.Math.rejection_sample_eta_4_inner $randomness) Seq.empty in
               v $sampled == Seq.length samples /\

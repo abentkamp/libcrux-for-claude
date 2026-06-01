@@ -50,8 +50,8 @@ The "Panic-safe" aggregate (sometimes useful for headline numbers) = Panic-free 
 |            | invntt            |    1 |  21 |   0 |     |   4 |    0 |     17 |       0 |
 |            | sample            |    1 |   3 |   0 |     |   0 |    3 |      0 |       0 |
 |            | encoding          |    6 |  19 |   0 |     |   0 |   19 |      0 |       0 |
-|            | simd (top)        |    1 |  33 |   5 |     |   1 |   12 |      2 |      13 |
-|            | **Portable total** | **12** | **118** | **5** |     | **10** | **37** | **38** |  **28** |
+|            | simd (top)        |    1 |  33 |   2 |     |   1 |   15 |      2 |      13 |
+|            | **Portable total** | **12** | **118** | **2** |     | **10** | **40** | **38** |  **28** |
 |            |                   |      |     |     |     |     |      |        |         |
 | _Avx2_     | vector_type       |    1 |   3 |   0 |     |   3 |    0 |      0 |       0 |
 |            | arithmetic        |    1 |  14 |   0 |     |   2 |    4 |      1 |       7 |
@@ -66,11 +66,11 @@ The "Panic-safe" aggregate (sometimes useful for headline numbers) = Panic-free 
 
 - **Total modules**: 58
 - **Total functions**: 593
-- **Lax** (admitted): 47 (7.9%)
+- **Lax** (admitted): 44 (7.4%)
 - **Unverified** (not extracted): 6 (1.0%)
-- **Panic-safe** (PF + Math + Bounds + Hacspec): 540 (91.1%)
+- **Panic-safe** (PF + Math + Bounds + Hacspec): 543 (91.6%)
   - Panic-free only (no further proof): 282 (47.6%)
-  - Math (non-trivial ensures, no bounds/spec match): 131 (22.1%)
+  - Math (non-trivial ensures, no bounds/spec match): 134 (22.6%)
   - Bounds (range/interval ensures): 66 (11.1%)
   - Hacspec (cites high-level spec): 61 (10.3%)
 
@@ -79,7 +79,7 @@ The "Panic-safe" aggregate (sometimes useful for headline numbers) = Panic-free 
 | Category     | Modules |  Fns | Lax | Unv |  PF | Math | Bounds | Hacspec |
 | ------------ | ------- | ---- | --- | --- | --- | ---- | ------ | ------- |
 | Generic      |      31 |  358 |  25 |   6 | 251 |   41 |     25 |      10 |
-| Portable     |      12 |  118 |   5 |   0 |  10 |   37 |     38 |      28 |
+| Portable     |      12 |  118 |   2 |   0 |  10 |   40 |     38 |      28 |
 | Avx2         |      15 |  117 |  17 |   0 |  21 |   53 |      3 |      23 |
 
 ## Unverified Rust modules (not extracted to F\*)
@@ -114,9 +114,6 @@ Functions classified as lax due to `admit ()` (or `--admit_smt_queries true`) in
 | Generic/ml_dsa_generic    |   754 |
 | Generic/ml_dsa_generic    |   782 |
 | Generic/ml_dsa_generic    |   834 |
-| Portable/simd (top)       |   532 |
-| Portable/simd (top)       |   544 |
-| Portable/simd (top)       |   556 |
 | Portable/simd (top)       |   687 |
 | Portable/simd (top)       |   702 |
 | Avx2/encoding             |    57 |
@@ -128,8 +125,8 @@ Functions classified as lax due to `admit ()` (or `--admit_smt_queries true`) in
 | Avx2/encoding             |    68 |
 | Avx2/simd (top)           |   390 |
 | Avx2/simd (top)           |   417 |
-| Avx2/simd (top)           |   711 |
-| Avx2/simd (top)           |   724 |
-| Avx2/simd (top)           |   737 |
-| Avx2/simd (top)           |   909 |
-| Avx2/simd (top)           |   925 |
+| Avx2/simd (top)           |   712 |
+| Avx2/simd (top)           |   726 |
+| Avx2/simd (top)           |   740 |
+| Avx2/simd (top)           |   912 |
+| Avx2/simd (top)           |   928 |
