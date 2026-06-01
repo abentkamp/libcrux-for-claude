@@ -230,6 +230,9 @@ fn try_sign_iteration<
 /// attempts fail (probability < 2⁻¹²⁸); `Err(SampleInBallExhausted)` is
 /// folded into rejection-loop continuation rather than propagated as
 /// a sign failure.
+// 0.3.7 migration: default rlimit 15 cancels on the `kappa + b` range
+// subtyping check (query 217); bumped to match sibling spec fns.
+#[hax_lib::fstar::options("--z3rlimit 300")]
 #[hax_lib::requires(
     K == params.k && L == params.l
     && C_TILDE_LEN <= 64 && C_TILDE_LEN >= params.lambda / 4

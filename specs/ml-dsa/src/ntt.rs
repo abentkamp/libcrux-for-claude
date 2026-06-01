@@ -56,6 +56,7 @@ pub(crate) fn bit_rev_8(m: usize) -> usize {
 /// `layer` is the bit-shift exponent: len = 1 << layer.
 /// For NTT, layers are applied from 7 down to 0 (len = 128, 64, ..., 1).
 /// The zeta index for block `round` at this layer is `128/len + round`.
+#[hax_lib::fstar::options("--split_queries always --z3rlimit 80")]
 #[hax_lib::requires(layer <= 7)]
 fn ntt_layer(p: Polynomial, layer: usize) -> Polynomial {
     let len = 1 << layer;
@@ -94,6 +95,7 @@ pub(crate) fn ntt(w: Polynomial) -> Polynomial {
 /// `layer` is the bit-shift exponent: len = 1 << layer.
 /// For INTT, layers are applied from 0 up to 7 (len = 1, 2, ..., 128).
 /// The zeta index for block `round` at this layer is `256/len - 1 - round`.
+#[hax_lib::fstar::options("--split_queries always --z3rlimit 80")]
 #[hax_lib::requires(layer <= 7)]
 fn intt_layer(p: Polynomial, layer: usize) -> Polynomial {
     let len = 1 << layer;
