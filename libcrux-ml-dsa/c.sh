@@ -61,7 +61,7 @@ fi
 if [[ "$no_charon" = 0 ]]; then
     # Because of a Charon bug we have to clean the sha3 crate.
     cargo clean -p libcrux-sha3
-    rm -rf $repo_root/libcrux_ml_dsa.llbc $repo_root/libcrux_sha3.llbc
+    rm -rf $repo_root/libcrux_ml_dsa.llbc $repo_root/libcrux_sha3.llbc $repo_root/libcrux_secrets.llbc
 
     flags=
     if [[ $(uname -m) == "arm64" ]]; then
@@ -75,6 +75,7 @@ if [[ "$no_charon" = 0 ]]; then
                                     --include 'libcrux_sha3' \
                                     --start-from libcrux_ml_dsa --start-from libcrux_sha3 \
                                     --include 'core::num::*::BITS' --include 'core::num::*::MAX' \
+                                    --include 'libcrux_secrets' \
                                     --rustc-arg=-Cdebug-assertions=no $flags
     if ! [[ -f $repo_root/libcrux_ml_dsa.llbc ]]; then
         echo "😱😱😱 You are the victim of a bug."

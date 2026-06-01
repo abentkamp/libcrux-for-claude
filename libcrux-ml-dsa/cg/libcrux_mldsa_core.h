@@ -8,7 +8,7 @@
  * Eurydice: b227478b67c6a6e2ff611f978f10d6b7f26472ac
  * Karamel: 4e64d915da3c172d1dfad805b8e1a46beff938bc
  * F*: 32dcc97722b61224e0e9c5b447ca72c4cd9ffcf9
- * Libcrux: dc3acb91f95df539456687a4c0965566e29e77f8
+ * Libcrux: b702958213d527b78100ce2afd5d7d83451688dd
  */
 
 #ifndef libcrux_mldsa_core_H
@@ -535,6 +535,19 @@ static inline Eurydice_borrow_slice_u8 Eurydice_array_to_subslice_shared_360(
 }
 
 /**
+ Declassify secret memory.
+
+ No-op if `valgrind_ct_test` cfg is not enabled.
+*/
+/**
+A monomorphic instance of libcrux_secrets.mem_requests.ct_declassify
+with types Eurydice_arr uint8_t[[$48size_t]]
+
+*/
+static KRML_MUSTINLINE void libcrux_secrets_mem_requests_ct_declassify_7d(
+    const Eurydice_arr_5f *val) {}
+
+/**
 A monomorphic instance of Eurydice.arr
 with types uint8_t
 with const generics
@@ -695,6 +708,19 @@ static inline Eurydice_borrow_slice_u8 Eurydice_array_to_slice_shared_07(
   lit.meta = (size_t)1U;
   return lit;
 }
+
+/**
+ Mark memory as secret.
+
+ No-op if `valgrind_ct_test` cfg is not enabled.
+*/
+/**
+A monomorphic instance of libcrux_secrets.mem_requests.ct_classify
+with types Eurydice_derefed_slice uint8_t
+
+*/
+static KRML_MUSTINLINE void libcrux_secrets_mem_requests_ct_classify_45(
+    const uint8_t (*val)[]) {}
 
 /**
  Init with zero
@@ -909,6 +935,19 @@ static inline Eurydice_borrow_slice_u8 Eurydice_array_to_slice_shared_8d(
 }
 
 /**
+ Declassify secret memory.
+
+ No-op if `valgrind_ct_test` cfg is not enabled.
+*/
+/**
+A monomorphic instance of libcrux_secrets.mem_requests.ct_declassify
+with types Eurydice_derefed_slice uint8_t
+
+*/
+static KRML_MUSTINLINE void libcrux_secrets_mem_requests_ct_declassify_45(
+    const uint8_t (*val)[]) {}
+
+/**
 A monomorphic instance of Eurydice.array_to_slice_shared
 with types int32_t
 with const generics
@@ -1024,6 +1063,19 @@ static inline Eurydice_borrow_slice_u8 Eurydice_array_to_slice_shared_6e(
 }
 
 /**
+ Mark memory as secret.
+
+ No-op if `valgrind_ct_test` cfg is not enabled.
+*/
+/**
+A monomorphic instance of libcrux_secrets.mem_requests.ct_classify
+with types Eurydice_arr uint8_t[[$32size_t]]
+
+*/
+static KRML_MUSTINLINE void libcrux_secrets_mem_requests_ct_classify_62(
+    const Eurydice_arr_60 *val) {}
+
+/**
 A monomorphic instance of Eurydice.arr
 with types int32_t
 with const generics
@@ -1043,6 +1095,19 @@ static inline Eurydice_dst_ref_shared_fc Eurydice_array_to_subslice_shared_7f(
     const Eurydice_arr_d4 *a, core_ops_range_Range_08 r) {
   return (Eurydice_dst_ref_shared_fc{a->data + r.start, r.end - r.start});
 }
+
+/**
+ Declassify secret memory.
+
+ No-op if `valgrind_ct_test` cfg is not enabled.
+*/
+/**
+A monomorphic instance of libcrux_secrets.mem_requests.ct_declassify
+with types bool
+
+*/
+static KRML_MUSTINLINE void libcrux_secrets_mem_requests_ct_declassify_5f(
+    const bool *val) {}
 
 /**
 A monomorphic instance of Eurydice.array_to_slice_shared
