@@ -6,16 +6,20 @@ use crate::{
 
 #[inline(always)]
 #[hax_lib::fstar::before(r#"[@@ "opaque_to_smt"]"#)]
-#[hax_lib::requires(fstar!(r#"v $bound > 0 /\ 
-        (forall i. forall j. Spec.Utils.is_i32b_array_opaque 
-            (v ${crate::simd::traits::specs::FIELD_MAX}) 
-            (i0._super_i2.f_repr (Seq.index (Seq.index vector i).f_simd_units j)))"#))]
+#[hax_lib::requires(fstar!(r#"v $bound > 0 /\
+        Libcrux_ml_dsa.Polynomial.Spec.is_bounded_poly_slice (mk_usize 8380416) $vector"#))]
 pub(crate) fn vector_infinity_norm_exceeds<SIMDUnit: Operations>(
     vector: &[PolynomialRingElement<SIMDUnit>],
     bound: i32,
 ) -> bool {
     let mut result = false;
     for i in 0..vector.len() {
+        // Bridge the slice-level FIELD_MAX bound to the per-row poly bound (and unfold
+        // it) so infinity_norm_exceeds' per-lane forall precondition discharges.
+        hax_lib::fstar!(
+            r#"Libcrux_ml_dsa.Polynomial.Spec.lemma_is_bounded_poly_slice_lookup (mk_usize 8380416) $vector (v $i);
+               reveal_opaque (`%Libcrux_ml_dsa.Polynomial.Spec.is_bounded_poly) (Libcrux_ml_dsa.Polynomial.Spec.is_bounded_poly (mk_usize 8380416) (Seq.index $vector (v $i)))"#
+        );
         result = result || vector[i].infinity_norm_exceeds(bound);
     }
     result
@@ -136,13 +140,10 @@ fn power2round_one_ring_element<SIMDUnit: Operations>(
 #[hax_lib::requires(fstar!(r#"
         (v $gamma2 == v ${crate::constants::GAMMA2_V261_888} \/ 
          v $gamma2 == v ${crate::constants::GAMMA2_V95_232}) /\
-         ${t.len()} == dimension /\ 
+         ${t.len()} == dimension /\
          ${low.len()} == dimension /\
          ${high.len()} == dimension /\
-         (forall i. forall j. 
-            Spec.Utils.is_i32b_array_opaque 
-            (v ${crate::simd::traits::specs::FIELD_MAX}) 
-            (i0._super_i2.f_repr (Seq.index (Seq.index t i).f_simd_units j)))"#))]
+         Libcrux_ml_dsa.Polynomial.Spec.is_bounded_poly_slice (mk_usize 8380416) $t"#))]
 pub(crate) fn decompose_vector<SIMDUnit: Operations>(
     dimension: usize,
     gamma2: Gamma2,
@@ -155,6 +156,13 @@ pub(crate) fn decompose_vector<SIMDUnit: Operations>(
 
         for j in 0..low[0].simd_units.len() {
             hax_lib::loop_invariant!(|i: usize| low.len() == dimension && high.len() == dimension);
+
+            // Bridge the slice-level FIELD_MAX bound on t down to the per-lane bound
+            // that decompose's precondition needs on t[i].simd_units[j].
+            hax_lib::fstar!(
+                r#"Libcrux_ml_dsa.Polynomial.Spec.lemma_is_bounded_poly_slice_lookup (mk_usize 8380416) $t (v $i);
+                   Libcrux_ml_dsa.Polynomial.Spec.lemma_is_bounded_poly_lookup (mk_usize 8380416) (Seq.index $t (v $i)) (v $j)"#
+            );
 
             SIMDUnit::decompose(
                 gamma2,
@@ -175,12 +183,8 @@ pub(crate) fn decompose_vector<SIMDUnit: Operations>(
          ${low.len()} == ${high.len()} /\
          ${low.len()} == ${hint.len()} /\
          v (${low.len()}) <= 8 /\
-         (forall (i:nat). i < Seq.length low ==>
-           (forall (j:nat). j < 32 ==>
-             Spec.Utils.is_i32b_array_opaque (v ${crate::simd::traits::specs::FIELD_MAX})
-               (i0._super_i2.f_repr (Seq.index (Seq.index low i).f_simd_units j)) /\
-             Spec.Utils.is_i32b_array_opaque (v ${crate::simd::traits::specs::FIELD_MAX})
-               (i0._super_i2.f_repr (Seq.index (Seq.index high i).f_simd_units j))))"#))]
+         Libcrux_ml_dsa.Polynomial.Spec.is_bounded_poly_slice (mk_usize 8380416) $low /\
+         Libcrux_ml_dsa.Polynomial.Spec.is_bounded_poly_slice (mk_usize 8380416) $high"#))]
 pub(crate) fn make_hint<SIMDUnit: Operations>(
     low: &[PolynomialRingElement<SIMDUnit>],
     high: &[PolynomialRingElement<SIMDUnit>],
@@ -195,6 +199,15 @@ pub(crate) fn make_hint<SIMDUnit: Operations>(
 
         for j in 0..hint_simd.simd_units.len() {
             hax_lib::loop_invariant!(|j: usize| true_hints <= 256 * i + 8 * j);
+
+            // Bridge the slice-level FIELD_MAX bound down to the per-lane bound that
+            // compute_hint's precondition needs: slice -> per-row poly -> per-lane.
+            hax_lib::fstar!(
+                r#"Libcrux_ml_dsa.Polynomial.Spec.lemma_is_bounded_poly_slice_lookup (mk_usize 8380416) $low (v $i);
+                   Libcrux_ml_dsa.Polynomial.Spec.lemma_is_bounded_poly_slice_lookup (mk_usize 8380416) $high (v $i);
+                   Libcrux_ml_dsa.Polynomial.Spec.lemma_is_bounded_poly_lookup (mk_usize 8380416) (Seq.index $low (v $i)) (v $j);
+                   Libcrux_ml_dsa.Polynomial.Spec.lemma_is_bounded_poly_lookup (mk_usize 8380416) (Seq.index $high (v $i)) (v $j)"#
+            );
 
             let one_hints_count = SIMDUnit::compute_hint(
                 &low[i].simd_units[j],
