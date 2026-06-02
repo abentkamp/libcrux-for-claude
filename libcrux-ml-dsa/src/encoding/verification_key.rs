@@ -56,11 +56,8 @@ pub(crate) fn generate_serialized<SIMDUnit: Operations>(
     Seq.length $serialized == v $rows_in_a * 320"#))]
 #[hax_lib::ensures(|_| fstar!(r#"
     Seq.length ${t1}_future == Seq.length t1 /\
-    (forall (k:nat{k < Seq.length ${t1}_future}). k < v $rows_in_a ==>
-      (forall (j:nat). j < 32 ==>
-        (forall (i:nat). i < 8 ==>
-          v (Seq.index (i0._super_i2.f_repr (Seq.index (Seq.index ${t1}_future k).f_simd_units j)) i) >= 0 /\
-          v (Seq.index (i0._super_i2.f_repr (Seq.index (Seq.index ${t1}_future k).f_simd_units j)) i) < pow2 10)))"#))]
+    Libcrux_ml_dsa.Polynomial.Spec.is_lane_range_poly_slice
+        (mk_usize 0) (mk_usize 1023) ${t1}_future"#))]
 pub(crate) fn deserialize<SIMDUnit: Operations>(
     rows_in_a: usize,
     verification_key_size: usize,
