@@ -464,8 +464,16 @@ impl<SIMDUnit: Operations> PolynomialRingElement<SIMDUnit> {
     }
 
     #[hax_lib::requires(array.len() == 256)]
+    #[hax_lib::ensures(|_| fstar!(r#"
+        forall (kk:nat). kk < 32 ==>
+           i0._super_i2.f_repr (Seq.index ${result}_future.f_simd_units kk) ==
+             Seq.slice $array (kk * 8) ((kk + 1) * 8)"#))]
     pub(crate) fn from_i32_array(array: &[i32], result: &mut Self) {
         for i in 0..SIMD_UNITS_IN_RING_ELEMENT {
+            hax_lib::loop_invariant!(|i: usize| fstar!(r#"
+                forall (kk:nat). kk < v ${i} ==>
+                   i0._super_i2.f_repr (Seq.index result.f_simd_units kk) ==
+                     Seq.slice $array (kk * 8) ((kk + 1) * 8)"#));
             SIMDUnit::from_coefficient_array(
                 &array[i * COEFFICIENTS_IN_SIMD_UNIT..(i + 1) * COEFFICIENTS_IN_SIMD_UNIT],
                 &mut result.simd_units[i],

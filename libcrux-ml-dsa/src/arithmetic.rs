@@ -213,7 +213,9 @@ pub(crate) fn make_hint<SIMDUnit: Operations>(
 }
 
 #[inline(always)]
+#[hax_lib::fstar::before(r#"let use_hint_bound (gamma2:i32) : usize = if v gamma2 = v Libcrux_ml_dsa.Constants.v_GAMMA2_V95_232_ then mk_usize 44 else mk_usize 16"#)]
 #[hax_lib::fstar::before(r#"[@@ "opaque_to_smt"]"#)]
+#[hax_lib::fstar::options("--z3rlimit 300 --split_queries always")]
 #[hax_lib::fstar::verification_status(panic_free)]
 #[hax_lib::requires(fstar!(r#"
         (v $gamma2 == v ${crate::constants::GAMMA2_V261_888} \/
@@ -244,14 +246,89 @@ pub(crate) fn use_hint<SIMDUnit: Operations>(
     hint: &[[i32; COEFFICIENTS_IN_RING_ELEMENT]],
     re_vector: &mut [PolynomialRingElement<SIMDUnit>],
 ) {
-    hax_lib::fstar!("admit ()");
+    #[cfg(hax)]
+    let old_rv: &[PolynomialRingElement<SIMDUnit>] = re_vector.to_vec().as_slice();
+    // Bridge the per-(i,j) FIELD_MAX requires to is_bounded_poly_slice on the
+    // entry snapshot old_rv, and seed the (empty) processed range.
+    hax_lib::fstar!(r#"
+        let _:Prims.unit =
+          let aux (k:nat{k < Seq.length old_rv}) :
+            Lemma (Libcrux_ml_dsa.Polynomial.Spec.is_bounded_poly
+                     (mk_usize 8380416) (Seq.index old_rv k)) =
+            assert (Seq.index old_rv k == Seq.index $re_vector k);
+            Libcrux_ml_dsa.Polynomial.Spec.lemma_is_bounded_poly_intro
+              (mk_usize 8380416) (Seq.index $re_vector k)
+          in Classical.forall_intro aux
+        in
+        Libcrux_ml_dsa.Polynomial.Spec.lemma_is_bounded_poly_slice_intro
+          (mk_usize 8380416) old_rv;
+        Libcrux_ml_dsa.Polynomial.Spec.lemma_is_bounded_poly_range_intro
+          (use_hint_bound $gamma2) (mk_usize 0) (mk_usize 0) $re_vector"#);
     for i in 0..re_vector.len() {
+        hax_lib::loop_invariant!(|i: usize| fstar!(r#"
+            v ${i} <= Seq.length $re_vector /\
+            Seq.length $re_vector == Seq.length old_rv /\
+            Seq.length $re_vector == Seq.length $hint /\
+            Libcrux_ml_dsa.Polynomial.Spec.is_bounded_poly_range
+              (use_hint_bound $gamma2) (mk_usize 0) ${i} $re_vector /\
+            (forall (k:nat). v ${i} <= k /\ k < Seq.length $re_vector ==>
+              Seq.index $re_vector k == Seq.index old_rv k) /\
+            Libcrux_ml_dsa.Polynomial.Spec.is_bounded_poly_slice
+              (mk_usize 8380416) old_rv"#));
+        // re_vector[i] == old_rv[i] (tail frame) and old_rv[i] is FIELD_MAX-bounded
+        // (slice lookup), so re_vector[i] is FIELD_MAX-bounded for the inner loop.
+        hax_lib::fstar!(r#"
+            assert (Seq.index $re_vector (v ${i}) == Seq.index old_rv (v ${i}));
+            Libcrux_ml_dsa.Polynomial.Spec.lemma_is_bounded_poly_slice_lookup
+              (mk_usize 8380416) old_rv (v ${i})"#);
         let mut tmp = PolynomialRingElement::zero();
         PolynomialRingElement::<SIMDUnit>::from_i32_array(&hint[i], &mut tmp);
 
+        // Bridge: from_i32_array gives `f_repr tmp.simd_units[kk] == hint[i][kk*8..(kk+1)*8]`,
+        // and `hint[i]` is binary (function pre), so each tmp simd-unit is a binary array.
+        hax_lib::fstar!(r#"
+            let aux (kk:nat{kk < 32}) : Lemma
+                (Libcrux_ml_dsa.Simd.Traits.Specs.is_binary_array_8_opaque
+                   (i0._super_i2.f_repr (Seq.index ${tmp}.f_simd_units kk))) =
+              let r = i0._super_i2.f_repr (Seq.index ${tmp}.f_simd_units kk) in
+              introduce forall (m:nat{m < 8}). (v (Seq.index r m) == 0 \/ v (Seq.index r m) == 1)
+              with (Seq.lemma_index_slice (Seq.index $hint (v ${i})) (kk * 8) ((kk + 1) * 8) m);
+              Libcrux_ml_dsa.Simd.Traits.Specs.lemma_is_binary_array_8_intro r
+            in Classical.forall_intro aux"#);
+
         for j in 0..re_vector[0].simd_units.len() {
+            hax_lib::loop_invariant!(|j: usize| fstar!(r#"
+                v ${j} <= 32 /\
+                Libcrux_ml_dsa.Polynomial.Spec.is_bounded_poly
+                  (mk_usize 8380416) (Seq.index $re_vector (v ${i})) /\
+                (forall (jj:nat). jj < v ${j} ==>
+                  Spec.Utils.is_i32b_array_opaque (v (use_hint_bound $gamma2))
+                    (i0._super_i2.f_repr (Seq.index ${tmp}.f_simd_units jj))) /\
+                (forall (jj:nat). v ${j} <= jj /\ jj < 32 ==>
+                  Libcrux_ml_dsa.Simd.Traits.Specs.is_binary_array_8_opaque
+                    (i0._super_i2.f_repr (Seq.index ${tmp}.f_simd_units jj)))"#));
             SIMDUnit::use_hint(gamma2, &re_vector[i].simd_units[j], &mut tmp.simd_units[j]);
         }
+        // After inner loop: all 32 tmp simd-units are is_i32b_array_opaque b_g; lift to is_bounded_poly b_g tmp.
+        hax_lib::fstar!(r#"
+            Libcrux_ml_dsa.Polynomial.Spec.lemma_is_bounded_poly_intro
+              (use_hint_bound $gamma2) ${tmp}"#);
+        // Snapshot pre-update re_vector so the carryover extend lemma can name arr_old.
+        #[cfg(hax)]
+        let iter_start: &[PolynomialRingElement<SIMDUnit>] = re_vector.to_vec().as_slice();
         re_vector[i] = tmp;
+        // Re-establish the processed range at i+1 via the standalone extend lemma
+        // (verified in clean context, avoiding cascade pollution here).
+        hax_lib::fstar!(r#"
+            Libcrux_ml_dsa.Polynomial.Spec.lemma_is_bounded_poly_range_extend_after_update
+              (use_hint_bound $gamma2) ${i} iter_start $re_vector"#);
     }
+    // Bridge the final processed range to the per-(i,j) gamma2-conditional ensures.
+    hax_lib::fstar!(r#"
+        let aux (k:nat{k < Seq.length ${re_vector}}) :
+          Lemma (Libcrux_ml_dsa.Polynomial.Spec.is_bounded_poly
+                   (use_hint_bound $gamma2) (Seq.index $re_vector k)) =
+          Libcrux_ml_dsa.Polynomial.Spec.lemma_is_bounded_poly_range_lookup
+            (use_hint_bound $gamma2) (mk_usize 0) (Core_models.Slice.impl__len $re_vector) $re_vector k
+        in Classical.forall_intro aux"#);
 }

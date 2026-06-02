@@ -149,6 +149,22 @@ Items repaired across commits `04fd066f0`, `42d4a3347`, and `1c827fab7`.
   as hax bug.
 
 ### Libcrux_ml_dsa.Arithmetic.use_hint
+- **STATUS 2026-06-02: CLOSED at panic_free (inline `admit ()` removed).** Took
+  Option B: added a per-simd-unit repr `ensures` to `Polynomial::from_i32_array`
+  (`f_repr result.simd_units[kk] == Seq.slice array (kk*8) ((kk+1)*8)`, proven via
+  loop invariant + `from_coefficient_array`'s post). use_hint then mirrors
+  `compute_w_approx`: entry snapshot `old_rv` + `is_bounded_poly_slice FIELD_MAX old_rv`
+  for the unprocessed tail; outer inv carries `is_bounded_poly_range b_g 0 i re_vector`
+  (b_g = `use_hint_bound gamma2` = 44 or 16) re-established each row via
+  `lemma_is_bounded_poly_range_extend_after_update`; the from_i32_array repr post +
+  `lemma_is_binary_array_8_intro` give the inner `use_hint`'s binary precond. Verified
+  clean full build + full prove (0 errors), rlimit 300 split_queries.
+- **Full-verification follow-up**: removing `verification_status(panic_free)` (to prove
+  the gamma2-conditional output ensures, not admit it) passes under `--admit_except`
+  but the clean full build hits "incomplete quantifiers" at 3 sub-queries (the
+  `is_i32b_array_opaque (use_hint_bound gamma2)` gamma2 case-split — b_g=44/16 — not
+  auto-instantiating under full context). The bounds machinery is already in place;
+  the upgrade just needs explicit gamma2 case-split asserts at those points.
 - **File**: `src/arithmetic.rs:155-185` (post `b097daf01`)
 - **Annotation**: `verification_status(panic_free)` + `hax_lib::fstar!("admit ()")`
 - **Diagnosis**: body needs `from_i32_array(&hint[i], &mut tmp)` post
