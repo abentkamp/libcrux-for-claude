@@ -231,6 +231,108 @@ let lemma_is_bounded_poly_slice_intro
         )
     }
 
+    /// Per-poly predicate: every lane coefficient is strictly bounded above
+    /// by `b` in the half-open sense (`is_i32b_strict_lower_array_opaque`,
+    /// the `(-b, b]` shape used by t0 serialize/deserialize).  Mirror of
+    /// `is_bounded_poly` but wrapping the strict-lower atom.  Made
+    /// `opaque_to_smt` so it appears as a single atom in pre/inv, dropping
+    /// the 2-deep `forall k j.` from quantifier search context.
+    #[cfg_attr(hax, hax_lib::fstar::before(r#"[@@ "opaque_to_smt"]"#))]
+    #[cfg_attr(
+        hax,
+        hax_lib::fstar::after(
+            r#"
+let lemma_is_strict_lower_poly_lookup
+      (#v_SIMDUnit: Type0)
+      (#[FStar.Tactics.Typeclasses.tcresolve ()]
+          i0:
+          Libcrux_ml_dsa.Simd.Traits.t_Operations v_SIMDUnit)
+      (b: usize)
+      (p: Libcrux_ml_dsa.Polynomial.t_PolynomialRingElement v_SIMDUnit)
+      (j: nat{j < 32})
+    : Lemma
+      (requires is_strict_lower_poly b p)
+      (ensures Spec.Utils.is_i32b_strict_lower_array_opaque (v b)
+                 (i0._super_i2.f_repr (Seq.index p.f_simd_units j)))
+      [SMTPat (Spec.Utils.is_i32b_strict_lower_array_opaque (v b)
+                 (i0._super_i2.f_repr (Seq.index p.f_simd_units j)));
+       SMTPat (is_strict_lower_poly b p)]
+  = reveal_opaque (`%is_strict_lower_poly) (is_strict_lower_poly b p)
+
+let lemma_is_strict_lower_poly_intro
+      (#v_SIMDUnit: Type0)
+      (#[FStar.Tactics.Typeclasses.tcresolve ()]
+          i0:
+          Libcrux_ml_dsa.Simd.Traits.t_Operations v_SIMDUnit)
+      (b: usize)
+      (p: Libcrux_ml_dsa.Polynomial.t_PolynomialRingElement v_SIMDUnit)
+    : Lemma
+      (requires forall (j: nat). j < 32 ==>
+        Spec.Utils.is_i32b_strict_lower_array_opaque (v b)
+          (i0._super_i2.f_repr (Seq.index p.f_simd_units j)))
+      (ensures is_strict_lower_poly b p)
+  = reveal_opaque (`%is_strict_lower_poly) (is_strict_lower_poly b p)
+"#
+        )
+    )]
+    pub(crate) fn is_strict_lower_poly<SIMDUnit: Operations>(
+        b: usize,
+        p: &PolynomialRingElement<SIMDUnit>,
+    ) -> hax_lib::Prop {
+        hax_lib::fstar_prop_expr!(
+            r#"forall (i:nat). i < 32 ==> Spec.Utils.is_i32b_strict_lower_array_opaque (v b)
+                  (i0._super_i2.f_repr (p.f_simd_units.[ sz i ]))"#
+        )
+    }
+
+    /// All entries of `arr` are strict-lower bounded by `b` at the
+    /// polynomial level.  Made `opaque_to_smt` to stop quantifier
+    /// cascades when this predicate appears in many hypotheses (e.g.
+    /// `generate_serialized`'s t0 precondition / loop invariant).
+    #[cfg_attr(hax, hax_lib::fstar::before(r#"[@@ "opaque_to_smt"]"#))]
+    #[cfg_attr(
+        hax,
+        hax_lib::fstar::after(
+            r#"
+let lemma_is_strict_lower_poly_slice_lookup
+      (#v_SIMDUnit: Type0)
+      (#[FStar.Tactics.Typeclasses.tcresolve ()]
+          i0:
+          Libcrux_ml_dsa.Simd.Traits.t_Operations v_SIMDUnit)
+      (b: usize)
+      (arr: t_Slice (Libcrux_ml_dsa.Polynomial.t_PolynomialRingElement v_SIMDUnit))
+      (k: nat)
+    : Lemma
+      (requires is_strict_lower_poly_slice b arr /\ k < Seq.length arr)
+      (ensures Libcrux_ml_dsa.Polynomial.Spec.is_strict_lower_poly b (Seq.index arr k))
+      [SMTPat (is_strict_lower_poly_slice b arr); SMTPat (Seq.index arr k)]
+  = reveal_opaque (`%is_strict_lower_poly_slice) (is_strict_lower_poly_slice b arr)
+
+let lemma_is_strict_lower_poly_slice_intro
+      (#v_SIMDUnit: Type0)
+      (#[FStar.Tactics.Typeclasses.tcresolve ()]
+          i0:
+          Libcrux_ml_dsa.Simd.Traits.t_Operations v_SIMDUnit)
+      (b: usize)
+      (arr: t_Slice (Libcrux_ml_dsa.Polynomial.t_PolynomialRingElement v_SIMDUnit))
+    : Lemma
+      (requires forall (k: nat). k < Seq.length arr ==>
+        Libcrux_ml_dsa.Polynomial.Spec.is_strict_lower_poly b (Seq.index arr k))
+      (ensures is_strict_lower_poly_slice b arr)
+  = reveal_opaque (`%is_strict_lower_poly_slice) (is_strict_lower_poly_slice b arr)
+"#
+        )
+    )]
+    pub(crate) fn is_strict_lower_poly_slice<SIMDUnit: Operations>(
+        b: usize,
+        arr: &[PolynomialRingElement<SIMDUnit>],
+    ) -> hax_lib::Prop {
+        hax_lib::fstar_prop_expr!(
+            r#"forall (k:nat). k < Seq.length arr ==>
+                  Libcrux_ml_dsa.Polynomial.Spec.is_strict_lower_poly b (Seq.index arr k)"#
+        )
+    }
+
     /// Per-poly predicate: every lane coefficient is in the inclusive
     /// range `[lo, hi]`.  Asymmetric counterpart of `is_bounded_poly`
     /// (which is `|x| < b`, symmetric around 0).  Used for things like

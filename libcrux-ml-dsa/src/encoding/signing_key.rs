@@ -31,10 +31,7 @@ use crate::{
            | Libcrux_ml_dsa.Constants.Eta_Two -> 2
            | Libcrux_ml_dsa.Constants.Eta_Four -> 4)
           (i0._super_i2.f_repr (Seq.index (Seq.index $s1_2 k).f_simd_units j)))) /\
-    (forall (k:nat). k < Seq.length $t0 ==>
-      (forall (j:nat). j < 32 ==>
-        Spec.Utils.is_i32b_strict_lower_array_opaque (pow2 12)
-          (i0._super_i2.f_repr (Seq.index (Seq.index $t0 k).f_simd_units j))))"#))]
+    Libcrux_ml_dsa.Polynomial.Spec.is_strict_lower_poly_slice (mk_usize (pow2 12)) $t0"#))]
 pub(crate) fn generate_serialized<SIMDUnit: Operations, Shake256: shake256::DsaXof>(
     eta: Eta,
     error_ring_element_size: usize,
@@ -121,16 +118,27 @@ pub(crate) fn generate_serialized<SIMDUnit: Operations, Shake256: shake256::DsaX
               v $t0_offset_base <= 128 + 15 * 128 /\
               Seq.length $signing_key_serialized ==
                   v $t0_offset_base + Seq.length $t0 * 416 /\
-              (forall (k:nat). k < Seq.length $t0 ==>
-                (forall (j:nat). j < 32 ==>
-                  Spec.Utils.is_i32b_strict_lower_array_opaque (pow2 12)
-                    (i0._super_i2.f_repr (Seq.index (Seq.index $t0 k).f_simd_units j))))"#
+              Libcrux_ml_dsa.Polynomial.Spec.is_strict_lower_poly_slice (mk_usize (pow2 12)) $t0"#
         ));
         hax_lib::fstar!(
             r#"assert (v $RING_ELEMENT_OF_T0S_SIZE == 416);
                assert (v i < v $t0_len);
                assert (v i * 416 <= 7 * 416);
                assert ((v i + 1) * 416 <= Seq.length $t0 * 416)"#
+        );
+        // Bridge: from the opaque slice atom recover the per-poly atom on t0[i],
+        // then unfold to the bare per-j forall that t0::serialize requires.
+        hax_lib::fstar!(
+            r#"Libcrux_ml_dsa.Polynomial.Spec.lemma_is_strict_lower_poly_slice_lookup
+                 (mk_usize (pow2 12)) $t0 (v $i);
+               let aux (j: nat{j < 32})
+                 : Lemma (Spec.Utils.is_i32b_strict_lower_array_opaque (pow2 12)
+                            (i0._super_i2.f_repr
+                               (Seq.index (Seq.index $t0 (v $i)).f_simd_units j))) =
+                 Libcrux_ml_dsa.Polynomial.Spec.lemma_is_strict_lower_poly_lookup
+                   (mk_usize (pow2 12)) (Seq.index $t0 (v $i)) j
+               in
+               Classical.forall_intro aux"#
         );
         let lo = t0_offset_base + i * RING_ELEMENT_OF_T0S_SIZE;
         let hi = lo + RING_ELEMENT_OF_T0S_SIZE;
