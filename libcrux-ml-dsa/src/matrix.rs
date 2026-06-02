@@ -483,22 +483,14 @@ pub(crate) fn compute_matrix_x_mask<SIMDUnit: Operations>(
 }
 
 #[inline(always)]
-#[hax_lib::fstar::options("--z3rlimit 800 --split_queries always")]
+#[hax_lib::fstar::options("--z3rlimit 200 --ext context_pruning --split_queries always")]
 #[hax_lib::requires(fstar!(r#"
-    (forall (k:nat). k < Seq.length $vector ==>
-        (forall (j:nat). j < 32 ==>
-            Spec.Utils.is_i32b_array_opaque (v ${FIELD_MAX})
-                (i0._super_i2.f_repr (Seq.index (Seq.index $vector k).f_simd_units j)))) /\
-    (forall (j:nat). j < 32 ==>
-        Spec.Utils.is_i32b_array_opaque (v ${FIELD_MAX})
-            (i0._super_i2.f_repr (Seq.index ring_element.f_simd_units j)))
+    Libcrux_ml_dsa.Polynomial.Spec.is_bounded_poly_slice (mk_usize 8380416) $vector /\
+    Libcrux_ml_dsa.Polynomial.Spec.is_bounded_poly (mk_usize 8380416) $ring_element
 "#))]
 #[hax_lib::ensures(|_| fstar!(r#"
     Seq.length ${vector}_future == Seq.length $vector /\
-    (forall (k:nat{k < Seq.length ${vector}_future}).
-        (forall (j:nat). j < 32 ==>
-            Spec.Utils.is_i32b_array_opaque (v ${FIELD_MAX})
-                (i0._super_i2.f_repr (Seq.index (Seq.index ${vector}_future k).f_simd_units j))))
+    Libcrux_ml_dsa.Polynomial.Spec.is_bounded_poly_slice (mk_usize 8380416) ${vector}_future
 "#))]
 pub(crate) fn vector_times_ring_element<SIMDUnit: Operations>(
     vector: &mut [PolynomialRingElement<SIMDUnit>],
@@ -506,47 +498,64 @@ pub(crate) fn vector_times_ring_element<SIMDUnit: Operations>(
 ) {
     #[cfg(hax)]
     let e_vector_orig: &[PolynomialRingElement<SIMDUnit>] = vector.to_vec().as_slice();
-    // ntt.rs now requires is_bounded_poly form; lift the per-lane FIELD_MAX
-    // pre on `ring_element` (immutable, so once is enough).
-    hax_lib::fstar!(
-        r#"Libcrux_ml_dsa.Polynomial.Spec.lemma_is_bounded_poly_intro
-             (mk_usize 8380416) $ring_element"#
-    );
+    // Carry the function-pre slice pred to the entry snapshot + seed empty range.
+    hax_lib::fstar!(r#"
+        let _:Prims.unit =
+          let aux (k: nat{k < Seq.length e_vector_orig}) :
+            Lemma (Libcrux_ml_dsa.Polynomial.Spec.is_bounded_poly
+                     (mk_usize 8380416) (Seq.index e_vector_orig k)) =
+            assert (Seq.index e_vector_orig k == Seq.index $vector k);
+            Libcrux_ml_dsa.Polynomial.Spec.lemma_is_bounded_poly_slice_lookup
+              (mk_usize 8380416) $vector k
+          in
+          Classical.forall_intro aux
+        in
+        Libcrux_ml_dsa.Polynomial.Spec.lemma_is_bounded_poly_slice_intro
+          (mk_usize 8380416) e_vector_orig;
+        Libcrux_ml_dsa.Polynomial.Spec.lemma_is_bounded_poly_range_intro
+          (mk_usize 8380416) (mk_usize 0) (mk_usize 0) $vector"#);
     for i in 0..vector.len() {
         hax_lib::loop_invariant!(|i: usize| fstar!(
-            r#"v i <= Seq.length vector /\
-              Seq.length vector == Seq.length e_vector_orig /\
-              (forall (j:nat). j < 32 ==>
-                  Spec.Utils.is_i32b_array_opaque (v ${FIELD_MAX})
-                      (i0._super_i2.f_repr (Seq.index ring_element.f_simd_units j))) /\
-              (forall (k:nat). k < v i ==>
-                  (forall (j:nat). j < 32 ==>
-                      Spec.Utils.is_i32b_array_opaque (v ${FIELD_MAX})
-                          (i0._super_i2.f_repr (Seq.index (Seq.index vector k).f_simd_units j)))) /\
-              (forall (k:nat). v i <= k /\ k < Seq.length vector ==>
-                  Seq.index vector k == Seq.index e_vector_orig k)"#
+            r#"v $i <= Seq.length $vector /\
+              Seq.length $vector == Seq.length e_vector_orig /\
+              Libcrux_ml_dsa.Polynomial.Spec.is_bounded_poly (mk_usize 8380416) $ring_element /\
+              Libcrux_ml_dsa.Polynomial.Spec.is_bounded_poly_slice (mk_usize 8380416) e_vector_orig /\
+              Libcrux_ml_dsa.Polynomial.Spec.is_bounded_poly_range
+                  (mk_usize 8380416) (mk_usize 0) $i $vector /\
+              (forall (k:nat). v $i <= k /\ k < Seq.length $vector ==>
+                  Seq.index $vector k == Seq.index e_vector_orig k)"#
         ));
+        #[cfg(hax)]
+        let iter_start: &[PolynomialRingElement<SIMDUnit>] = vector.to_vec().as_slice();
+        // vector[i] == e_vector_orig[i] (tail frame) and e_vector_orig is FIELD_MAX-bounded
+        // (slice lookup), giving the FIELD_MAX bound ntt_multiply_montgomery needs on vector[i].
+        hax_lib::fstar!(r#"
+            assert (Seq.index $vector (v $i) == Seq.index e_vector_orig (v $i));
+            Libcrux_ml_dsa.Polynomial.Spec.lemma_is_bounded_poly_slice_lookup
+              (mk_usize 8380416) e_vector_orig (v $i)"#);
         ntt_multiply_montgomery(&mut vector[i], ring_element);
         invert_ntt_montgomery(&mut vector[i]);
-        // invert_ntt_montgomery's new post is `is_bounded_poly 4_211_177`;
-        // weaken to FIELD_MAX, then explicitly extract per-lane form for the
-        // loop invariant (SMTPat lemma_is_bounded_poly_lookup fires via the
-        // explicit forall_intro across the 32 lanes).
-        hax_lib::fstar!(
-            r#"Libcrux_ml_dsa.Polynomial.Spec.lemma_is_bounded_poly_higher
-                 (mk_usize 4211177) (mk_usize 8380416)
-                 (Seq.index $vector (v $i));
-               let lemma_lift (j:nat{j < 32}) :
-                 Lemma (Spec.Utils.is_i32b_array_opaque
-                          (v Libcrux_ml_dsa.Simd.Traits.Specs.v_FIELD_MAX)
-                          (i0._super_i2.f_repr
-                             (Seq.index (Seq.index $vector (v $i)).f_simd_units j))) =
-                 Libcrux_ml_dsa.Polynomial.Spec.lemma_is_bounded_poly_lookup
-                   (mk_usize 8380416) (Seq.index $vector (v $i)) j
-               in
-               Classical.forall_intro lemma_lift"#
-        );
+        // invert_ntt_montgomery post is is_bounded_poly 4_211_177; weaken to FIELD_MAX,
+        // then extend the processed range to i+1 via the standalone lemma.
+        hax_lib::fstar!(r#"
+            Libcrux_ml_dsa.Polynomial.Spec.lemma_is_bounded_poly_higher
+              (mk_usize 4211177) (mk_usize 8380416) (Seq.index $vector (v $i));
+            Libcrux_ml_dsa.Polynomial.Spec.lemma_is_bounded_poly_range_extend_after_update
+              (mk_usize 8380416) $i iter_start $vector"#);
     }
+    // Bridge the final processed range to slice form for the post.
+    hax_lib::fstar!(r#"
+        let _:Prims.unit =
+          let aux (k: nat{k < Seq.length ${vector}}) :
+            Lemma (Libcrux_ml_dsa.Polynomial.Spec.is_bounded_poly (mk_usize 8380416)
+                     (Seq.index $vector k)) =
+            Libcrux_ml_dsa.Polynomial.Spec.lemma_is_bounded_poly_range_lookup
+              (mk_usize 8380416) (mk_usize 0) (Core_models.Slice.impl__len $vector) $vector k
+          in
+          Classical.forall_intro aux
+        in
+        Libcrux_ml_dsa.Polynomial.Spec.lemma_is_bounded_poly_slice_intro
+          (mk_usize 8380416) $vector"#);
 }
 
 #[inline(always)]
