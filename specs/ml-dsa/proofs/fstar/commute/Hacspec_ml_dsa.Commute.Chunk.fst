@@ -1220,3 +1220,445 @@ let lemma_ntt_layer_0_step_to_hacspec_poly
     in
     Classical.forall_intro aux
 #pop-options
+
+(* ===== NTT layer 1 (forward, within-chunk, len=2) =====
+   Same shape as layer 0 with stride-2 pairs: within one chunk the 4
+   butterflies act on lane pairs (0,2),(1,3),(4,6),(5,7).  Pairs are
+   indexed by (half h, sub-index j): lanes (4h+j, 4h+j+2).  The spec
+   zeta for half h of chunk b is `v_ZETAS.[2b + h + 64]` (round = i/4,
+   k = 128/len = 64) — ONE zeta per half, shared by its two pairs,
+   matching the impl's `simd_unit_ntt_at_layer_1 (zeta1, zeta2)`.
+   The per-pair algebra is layer-agnostic: `lemma_layer_0_pair_spec`
+   is reused as-is. *)
+
+(* layer-1 reducer: `ntt_layer p 1` at flat index `i`.  len=2, k=64:
+     round = i/4,  idx = i%4,  z = v_ZETAS.[i/4 + 64].
+     lo  (idx<2):  mod_q(p.[i] + mod_q(z*p.[i+2])).
+     hi  (idx>=2): mod_q(p.[i-2] - mod_q(z*p.[i])). *)
+let layer_1_lane (p: t_Array i32 (mk_usize 256)) (i: usize{i <. mk_usize 256}) : i32 =
+  let round:usize = i /! mk_usize 4 in
+  let idx:usize = i %! mk_usize 4 in
+  let z:i64 = cast (Hacspec_ml_dsa.Ntt.v_ZETAS.[ round +! mk_usize 64 <: usize ] <: i32) <: i64 in
+  if idx <. mk_usize 2
+  then
+    let t:i32 =
+      Hacspec_ml_dsa.Arithmetic.mod_q (z *! (cast (p.[ i +! mk_usize 2 <: usize ] <: i32) <: i64)
+          <:
+          i64)
+    in
+    Hacspec_ml_dsa.Arithmetic.mod_q ((cast (p.[ i ] <: i32) <: i64) +!
+        (cast (t <: i32) <: i64)
+        <:
+        i64)
+  else
+    let t:i32 =
+      Hacspec_ml_dsa.Arithmetic.mod_q (z *! (cast (p.[ i ] <: i32) <: i64) <: i64)
+    in
+    Hacspec_ml_dsa.Arithmetic.mod_q ((cast (p.[ i -! mk_usize 2 <: usize ] <: i32) <: i64) -!
+        (cast (t <: i32) <: i64)
+        <:
+        i64)
+
+(* Reduction lemma: `ntt_layer p 1` at flat index `i` equals `layer_1_lane p i`.
+   Mirrors `lemma_ntt_layer_0_lane` (len = 1 << 1 = 2, k = 128/2 = 64,
+   2*len = 4). *)
+#push-options "--fuel 0 --ifuel 1 --z3rlimit 150 --split_queries always"
+let lemma_ntt_layer_1_lane (p: t_Array i32 (mk_usize 256)) (i: usize{i <. mk_usize 256})
+    : Lemma (Seq.index (Hacspec_ml_dsa.Ntt.ntt_layer p (mk_usize 1)) (v i) == layer_1_lane p i)
+  = ()
+#pop-options
+
+(* Per-pair clean-context spec-lane bridge for layer 1.  Pair (h, j) of
+   chunk `b` acts on lanes (4h+j, 4h+j+2); the spec zeta is
+   `v_ZETAS.[2b + h + 64]`.  Same structure as `lemma_layer_0_chunk_pair`. *)
+#push-options "--fuel 0 --ifuel 1 --z3rlimit 300 --split_queries always"
+let lemma_layer_1_chunk_pair
+    (input transformed: t_Array (t_Array i32 (mk_usize 8)) (mk_usize 32))
+    (b: nat{b < 32}) (h: nat{h < 2}) (j: nat{j < 2})
+    (tp zmp: i32)
+    : Lemma
+        (requires
+          (let ci = Seq.index input b in
+           let co = Seq.index transformed b in
+           let z : i32 = Hacspec_ml_dsa.Ntt.v_ZETAS.[ mk_usize (2*b + h + 64) ] in
+           v (Seq.index co (4*h+j))   == v (Seq.index ci (4*h+j)) + v tp /\
+           v (Seq.index co (4*h+j+2)) == v (Seq.index ci (4*h+j)) - v tp /\
+           (v tp) % 8380417 == (v (Seq.index ci (4*h+j+2)) * v zmp * 8265825) % 8380417 /\
+           (v zmp) % 8380417 == (v z * pow2 32) % 8380417))
+        (ensures
+          (let in_flat = simd_units_to_array input in
+           let co = Seq.index transformed b in
+           let spec = Hacspec_ml_dsa.Ntt.ntt_layer in_flat (mk_usize 1) in
+           (v (Seq.index co (4*h+j)))   % 8380417 == (v (Seq.index spec (8*b + 4*h+j)))   % 8380417 /\
+           (v (Seq.index co (4*h+j+2))) % 8380417 == (v (Seq.index spec (8*b + 4*h+j+2))) % 8380417))
+  = let q : pos = 8380417 in
+    let ci = Seq.index input b in
+    let co = Seq.index transformed b in
+    let in_flat = simd_units_to_array input in
+    let lo_old = Seq.index ci (4*h+j) in
+    let hi_old = Seq.index ci (4*h+j+2) in
+    let lo_new = Seq.index co (4*h+j) in
+    let hi_new = Seq.index co (4*h+j+2) in
+    let z : i32 = Hacspec_ml_dsa.Ntt.v_ZETAS.[ mk_usize (2*b + h + 64) ] in
+    let i_lo : usize = mk_usize (8*b + 4*h + j) in
+    let i_hi : usize = mk_usize (8*b + 4*h + j + 2) in
+    // in_flat lanes at i_lo / i_hi are ci.[4h+j] / ci.[4h+j+2].
+    lemma_simd_units_to_array_reveal input b (4*h+j);
+    lemma_simd_units_to_array_reveal input b (4*h+j+2);
+    assert (Seq.index in_flat (8*b + 4*h+j) == lo_old);
+    assert (Seq.index in_flat (8*b + 4*h+j+2) == hi_old);
+    // index identities so layer_1_lane unfolds to the matching pair / zeta.
+    assert (v i_lo == 8*b + 4*h + j);
+    assert (v i_hi == 8*b + 4*h + j + 2);
+    assert ((8*b + 4*h + j) / 4 == 2*b + h);
+    assert ((8*b + 4*h + j + 2) / 4 == 2*b + h);
+    assert ((8*b + 4*h + j) % 4 == j);
+    assert ((8*b + 4*h + j + 2) % 4 == j + 2);
+    // reduce the two spec lanes to layer_1_lane (createi unfold, minimal context)
+    lemma_ntt_layer_1_lane in_flat i_lo;
+    lemma_ntt_layer_1_lane in_flat i_hi;
+    // bridge the impl pair to the two spec mod_q lanes (layer-agnostic algebra)
+    lemma_layer_0_pair_spec lo_old hi_old tp lo_new hi_new zmp z
+#pop-options
+
+(* Per-chunk 8-lane bridge for layer 1.  Thin dispatcher over the 4
+   (h, j) pair lemmas + a forall over the 8 lanes.  Witnesses: per-pair
+   Montgomery products t_hj, ONE Mont-form zeta per half (zm0, zm1) —
+   matching the impl's `simd_unit_ntt_at_layer_1 (zeta1, zeta2)`. *)
+#push-options "--fuel 0 --ifuel 1 --z3rlimit 200 --split_queries always"
+let lemma_ntt_layer_1_chunk_to_hacspec
+    (input transformed: t_Array (t_Array i32 (mk_usize 8)) (mk_usize 32))
+    (b: nat{b < 32})
+    (t00 t01 t10 t11 zm0 zm1: i32)
+    : Lemma
+        (requires
+          (let ci = Seq.index input b in
+           let co = Seq.index transformed b in
+           let z (h:nat{h<2}) : i32 = Hacspec_ml_dsa.Ntt.v_ZETAS.[ mk_usize (2*b + h + 64) ] in
+           (* half 0, pair j=0: lanes 0,2 *)
+           v (Seq.index co 0) == v (Seq.index ci 0) + v t00 /\
+           v (Seq.index co 2) == v (Seq.index ci 0) - v t00 /\
+           (v t00) % 8380417 == (v (Seq.index ci 2) * v zm0 * 8265825) % 8380417 /\
+           (* half 0, pair j=1: lanes 1,3 *)
+           v (Seq.index co 1) == v (Seq.index ci 1) + v t01 /\
+           v (Seq.index co 3) == v (Seq.index ci 1) - v t01 /\
+           (v t01) % 8380417 == (v (Seq.index ci 3) * v zm0 * 8265825) % 8380417 /\
+           (* half 1, pair j=0: lanes 4,6 *)
+           v (Seq.index co 4) == v (Seq.index ci 4) + v t10 /\
+           v (Seq.index co 6) == v (Seq.index ci 4) - v t10 /\
+           (v t10) % 8380417 == (v (Seq.index ci 6) * v zm1 * 8265825) % 8380417 /\
+           (* half 1, pair j=1: lanes 5,7 *)
+           v (Seq.index co 5) == v (Seq.index ci 5) + v t11 /\
+           v (Seq.index co 7) == v (Seq.index ci 5) - v t11 /\
+           (v t11) % 8380417 == (v (Seq.index ci 7) * v zm1 * 8265825) % 8380417 /\
+           (* zeta congruences: one per half *)
+           (v zm0) % 8380417 == (v (z 0) * pow2 32) % 8380417 /\
+           (v zm1) % 8380417 == (v (z 1) * pow2 32) % 8380417))
+        (ensures
+          (let in_flat = simd_units_to_array input in
+           let out_flat = simd_units_to_array transformed in
+           let spec = Hacspec_ml_dsa.Ntt.ntt_layer in_flat (mk_usize 1) in
+           (forall (l: nat). l < 8 ==>
+             (v (Seq.index out_flat (8*b + l))) % 8380417 ==
+             (v (Seq.index spec (8*b + l))) % 8380417)))
+  = let q : pos = 8380417 in
+    let co = Seq.index transformed b in
+    let out_flat = simd_units_to_array transformed in
+    let spec = Hacspec_ml_dsa.Ntt.ntt_layer (simd_units_to_array input) (mk_usize 1) in
+    // discharge each (h, j) pair in its own clean lemma
+    lemma_layer_1_chunk_pair input transformed b 0 0 t00 zm0;
+    lemma_layer_1_chunk_pair input transformed b 0 1 t01 zm0;
+    lemma_layer_1_chunk_pair input transformed b 1 0 t10 zm1;
+    lemma_layer_1_chunk_pair input transformed b 1 1 t11 zm1;
+    // per-lane: half h = l/4, sub-index j = l%2; lo lane iff l%4 < 2.
+    let aux (l: nat{l < 8}) : Lemma
+        ((v (Seq.index out_flat (8*b + l))) % q == (v (Seq.index spec (8*b + l))) % q)
+      = let h : nat = l / 4 in
+        let j : nat = l % 2 in
+        assert (h < 2 /\ j < 2);
+        lemma_simd_units_to_array_reveal transformed b l;
+        assert (Seq.index out_flat (8*b + l) == Seq.index co l);
+        if l % 4 < 2 then begin
+          assert (l == 4*h + j);
+          assert (Seq.index co l == Seq.index co (4*h + j))
+        end else begin
+          assert (l == 4*h + j + 2);
+          assert (Seq.index co l == Seq.index co (4*h + j + 2))
+        end
+    in
+    Classical.forall_intro aux
+#pop-options
+
+(* All-32-chunk composition for layer 1.  Witness functions: `t b h j`
+   (Montgomery butterfly product for pair (h,j) of chunk b) and `zm b h`
+   (the impl's Mont-form zeta for half h of chunk b). *)
+#push-options "--fuel 0 --ifuel 1 --z3rlimit 200 --split_queries always"
+let lemma_ntt_layer_1_step_to_hacspec_poly
+    (input transformed: t_Array (t_Array i32 (mk_usize 8)) (mk_usize 32))
+    (t: (b: nat{b < 32} -> h: nat{h < 2} -> j: nat{j < 2} -> i32))
+    (zm: (b: nat{b < 32} -> h: nat{h < 2} -> i32))
+    : Lemma
+        (requires
+          (* Butterfly relations quantified per (b, h, j): the natural trigger
+             `t b h j` covers all three binders.  The zeta congruence lives in
+             a SEPARATE forall per (b, h): inside the (b,h,j) forall the only
+             all-binder trigger is `t b h j`, which the zeta sub-goals never
+             mention, so under --split_queries Z3 cannot instantiate there
+             (observed: "incomplete quantifiers" on exactly the two zeta
+             conjuncts of the chunk-lemma call). *)
+          (forall (b: nat{b < 32}) (h: nat{h < 2}) (j: nat{j < 2}).
+           (let ci = Seq.index input b in
+            let co = Seq.index transformed b in
+            v (Seq.index co (4*h+j))   == v (Seq.index ci (4*h+j)) + v (t b h j) /\
+            v (Seq.index co (4*h+j+2)) == v (Seq.index ci (4*h+j)) - v (t b h j) /\
+            (v (t b h j)) % 8380417 == (v (Seq.index ci (4*h+j+2)) * v (zm b h) * 8265825) % 8380417)) /\
+          (forall (b: nat{b < 32}) (h: nat{h < 2}).
+           (v (zm b h)) % 8380417 ==
+           (v (Hacspec_ml_dsa.Ntt.v_ZETAS.[ mk_usize (2*b + h + 64) ] <: i32) * pow2 32) % 8380417))
+        (ensures
+          (let in_flat = simd_units_to_array input in
+           let out_flat = simd_units_to_array transformed in
+           let spec = Hacspec_ml_dsa.Ntt.ntt_layer in_flat (mk_usize 1) in
+           forall (i: nat). i < 256 ==>
+             (v (Seq.index out_flat i)) % 8380417 ==
+             (v (Seq.index spec i)) % 8380417))
+  = let q : pos = 8380417 in
+    let in_flat = simd_units_to_array input in
+    let out_flat = simd_units_to_array transformed in
+    let spec = Hacspec_ml_dsa.Ntt.ntt_layer in_flat (mk_usize 1) in
+    let chunk (b: nat{b < 32}) : Lemma
+        (forall (l: nat). l < 8 ==>
+           (v (Seq.index out_flat (8*b + l))) % q ==
+           (v (Seq.index spec (8*b + l))) % q)
+      = lemma_ntt_layer_1_chunk_to_hacspec input transformed b
+          (t b 0 0) (t b 0 1) (t b 1 0) (t b 1 1)
+          (zm b 0) (zm b 1)
+    in
+    let aux (i: nat{i < 256}) : Lemma
+        ((v (Seq.index out_flat i)) % q == (v (Seq.index spec i)) % q)
+      = let b : nat = i / 8 in
+        let l : nat = i % 8 in
+        assert (b < 32 /\ l < 8);
+        assert (8*b + l == i);
+        chunk b;
+        assert ((v (Seq.index out_flat (8*b + l))) % q ==
+                (v (Seq.index spec (8*b + l))) % q)
+    in
+    Classical.forall_intro aux
+#pop-options
+
+(* ===== NTT layer 2 (forward, within-chunk, len=4) =====
+   Stride-4 pairs: within one chunk the 4 butterflies act on lane pairs
+   (p, p+4) for p in 0..3, ALL sharing the single spec zeta
+   `v_ZETAS.[b + 32]` (round = i/8, k = 128/len = 32) — matching the
+   impl's `simd_unit_ntt_at_layer_2 (zeta)` (one zeta per chunk).
+   The per-pair algebra is again `lemma_layer_0_pair_spec`. *)
+
+(* layer-2 reducer: `ntt_layer p 2` at flat index `i`.  len=4, k=32:
+     round = i/8,  idx = i%8,  z = v_ZETAS.[i/8 + 32].
+     lo  (idx<4):  mod_q(p.[i] + mod_q(z*p.[i+4])).
+     hi  (idx>=4): mod_q(p.[i-4] - mod_q(z*p.[i])). *)
+let layer_2_lane (p: t_Array i32 (mk_usize 256)) (i: usize{i <. mk_usize 256}) : i32 =
+  let round:usize = i /! mk_usize 8 in
+  let idx:usize = i %! mk_usize 8 in
+  let z:i64 = cast (Hacspec_ml_dsa.Ntt.v_ZETAS.[ round +! mk_usize 32 <: usize ] <: i32) <: i64 in
+  if idx <. mk_usize 4
+  then
+    let t:i32 =
+      Hacspec_ml_dsa.Arithmetic.mod_q (z *! (cast (p.[ i +! mk_usize 4 <: usize ] <: i32) <: i64)
+          <:
+          i64)
+    in
+    Hacspec_ml_dsa.Arithmetic.mod_q ((cast (p.[ i ] <: i32) <: i64) +!
+        (cast (t <: i32) <: i64)
+        <:
+        i64)
+  else
+    let t:i32 =
+      Hacspec_ml_dsa.Arithmetic.mod_q (z *! (cast (p.[ i ] <: i32) <: i64) <: i64)
+    in
+    Hacspec_ml_dsa.Arithmetic.mod_q ((cast (p.[ i -! mk_usize 4 <: usize ] <: i32) <: i64) -!
+        (cast (t <: i32) <: i64)
+        <:
+        i64)
+
+(* Reduction lemma: `ntt_layer p 2` at flat index `i` equals `layer_2_lane p i`.
+   Mirrors `lemma_ntt_layer_0_lane` (len = 1 << 2 = 4, k = 128/4 = 32,
+   2*len = 8). *)
+#push-options "--fuel 0 --ifuel 1 --z3rlimit 150 --split_queries always"
+let lemma_ntt_layer_2_lane (p: t_Array i32 (mk_usize 256)) (i: usize{i <. mk_usize 256})
+    : Lemma (Seq.index (Hacspec_ml_dsa.Ntt.ntt_layer p (mk_usize 2)) (v i) == layer_2_lane p i)
+  = ()
+#pop-options
+
+(* Per-pair clean-context spec-lane bridge for layer 2.  Pair `p` of
+   chunk `b` acts on lanes (p, p+4); the spec zeta is `v_ZETAS.[b + 32]`
+   (shared by all 4 pairs).  Same structure as `lemma_layer_0_chunk_pair`. *)
+#push-options "--fuel 0 --ifuel 1 --z3rlimit 300 --split_queries always"
+let lemma_layer_2_chunk_pair
+    (input transformed: t_Array (t_Array i32 (mk_usize 8)) (mk_usize 32))
+    (b: nat{b < 32}) (p: nat{p < 4})
+    (tp zmp: i32)
+    : Lemma
+        (requires
+          (let ci = Seq.index input b in
+           let co = Seq.index transformed b in
+           let z : i32 = Hacspec_ml_dsa.Ntt.v_ZETAS.[ mk_usize (b + 32) ] in
+           v (Seq.index co p)     == v (Seq.index ci p) + v tp /\
+           v (Seq.index co (p+4)) == v (Seq.index ci p) - v tp /\
+           (v tp) % 8380417 == (v (Seq.index ci (p+4)) * v zmp * 8265825) % 8380417 /\
+           (v zmp) % 8380417 == (v z * pow2 32) % 8380417))
+        (ensures
+          (let in_flat = simd_units_to_array input in
+           let co = Seq.index transformed b in
+           let spec = Hacspec_ml_dsa.Ntt.ntt_layer in_flat (mk_usize 2) in
+           (v (Seq.index co p))     % 8380417 == (v (Seq.index spec (8*b + p)))   % 8380417 /\
+           (v (Seq.index co (p+4))) % 8380417 == (v (Seq.index spec (8*b + p+4))) % 8380417))
+  = let q : pos = 8380417 in
+    let ci = Seq.index input b in
+    let co = Seq.index transformed b in
+    let in_flat = simd_units_to_array input in
+    let lo_old = Seq.index ci p in
+    let hi_old = Seq.index ci (p+4) in
+    let lo_new = Seq.index co p in
+    let hi_new = Seq.index co (p+4) in
+    let z : i32 = Hacspec_ml_dsa.Ntt.v_ZETAS.[ mk_usize (b + 32) ] in
+    let i_lo : usize = mk_usize (8*b + p) in
+    let i_hi : usize = mk_usize (8*b + p + 4) in
+    // in_flat lanes at i_lo / i_hi are ci.[p] / ci.[p+4].
+    lemma_simd_units_to_array_reveal input b p;
+    lemma_simd_units_to_array_reveal input b (p+4);
+    assert (Seq.index in_flat (8*b + p) == lo_old);
+    assert (Seq.index in_flat (8*b + p+4) == hi_old);
+    // index identities so layer_2_lane unfolds to the matching pair / zeta.
+    assert (v i_lo == 8*b + p);
+    assert (v i_hi == 8*b + p + 4);
+    assert ((8*b + p) / 8 == b);
+    assert ((8*b + p + 4) / 8 == b);
+    assert ((8*b + p) % 8 == p);
+    assert ((8*b + p + 4) % 8 == p + 4);
+    // reduce the two spec lanes to layer_2_lane (createi unfold, minimal context)
+    lemma_ntt_layer_2_lane in_flat i_lo;
+    lemma_ntt_layer_2_lane in_flat i_hi;
+    // bridge the impl pair to the two spec mod_q lanes (layer-agnostic algebra)
+    lemma_layer_0_pair_spec lo_old hi_old tp lo_new hi_new zmp z
+#pop-options
+
+(* Per-chunk 8-lane bridge for layer 2.  Thin dispatcher over the 4 pair
+   lemmas + a forall over the 8 lanes.  Witnesses: per-pair Montgomery
+   products t0..t3, ONE Mont-form zeta `zm` for the whole chunk —
+   matching the impl's `simd_unit_ntt_at_layer_2 (zeta)`. *)
+#push-options "--fuel 0 --ifuel 1 --z3rlimit 200 --split_queries always"
+let lemma_ntt_layer_2_chunk_to_hacspec
+    (input transformed: t_Array (t_Array i32 (mk_usize 8)) (mk_usize 32))
+    (b: nat{b < 32})
+    (t0 t1 t2 t3 zm: i32)
+    : Lemma
+        (requires
+          (let ci = Seq.index input b in
+           let co = Seq.index transformed b in
+           let z : i32 = Hacspec_ml_dsa.Ntt.v_ZETAS.[ mk_usize (b + 32) ] in
+           (* pair 0: lanes 0,4 *)
+           v (Seq.index co 0) == v (Seq.index ci 0) + v t0 /\
+           v (Seq.index co 4) == v (Seq.index ci 0) - v t0 /\
+           (v t0) % 8380417 == (v (Seq.index ci 4) * v zm * 8265825) % 8380417 /\
+           (* pair 1: lanes 1,5 *)
+           v (Seq.index co 1) == v (Seq.index ci 1) + v t1 /\
+           v (Seq.index co 5) == v (Seq.index ci 1) - v t1 /\
+           (v t1) % 8380417 == (v (Seq.index ci 5) * v zm * 8265825) % 8380417 /\
+           (* pair 2: lanes 2,6 *)
+           v (Seq.index co 2) == v (Seq.index ci 2) + v t2 /\
+           v (Seq.index co 6) == v (Seq.index ci 2) - v t2 /\
+           (v t2) % 8380417 == (v (Seq.index ci 6) * v zm * 8265825) % 8380417 /\
+           (* pair 3: lanes 3,7 *)
+           v (Seq.index co 3) == v (Seq.index ci 3) + v t3 /\
+           v (Seq.index co 7) == v (Seq.index ci 3) - v t3 /\
+           (v t3) % 8380417 == (v (Seq.index ci 7) * v zm * 8265825) % 8380417 /\
+           (* zeta congruence: one per chunk *)
+           (v zm) % 8380417 == (v z * pow2 32) % 8380417))
+        (ensures
+          (let in_flat = simd_units_to_array input in
+           let out_flat = simd_units_to_array transformed in
+           let spec = Hacspec_ml_dsa.Ntt.ntt_layer in_flat (mk_usize 2) in
+           (forall (l: nat). l < 8 ==>
+             (v (Seq.index out_flat (8*b + l))) % 8380417 ==
+             (v (Seq.index spec (8*b + l))) % 8380417)))
+  = let q : pos = 8380417 in
+    let co = Seq.index transformed b in
+    let out_flat = simd_units_to_array transformed in
+    let spec = Hacspec_ml_dsa.Ntt.ntt_layer (simd_units_to_array input) (mk_usize 2) in
+    // discharge each pair in its own clean lemma
+    lemma_layer_2_chunk_pair input transformed b 0 t0 zm;
+    lemma_layer_2_chunk_pair input transformed b 1 t1 zm;
+    lemma_layer_2_chunk_pair input transformed b 2 t2 zm;
+    lemma_layer_2_chunk_pair input transformed b 3 t3 zm;
+    // per-lane: pair p = l%4; lo lane iff l < 4.
+    let aux (l: nat{l < 8}) : Lemma
+        ((v (Seq.index out_flat (8*b + l))) % q == (v (Seq.index spec (8*b + l))) % q)
+      = let p : nat = l % 4 in
+        assert (p < 4);
+        lemma_simd_units_to_array_reveal transformed b l;
+        assert (Seq.index out_flat (8*b + l) == Seq.index co l);
+        if l < 4 then begin
+          assert (l == p);
+          assert (Seq.index co l == Seq.index co p)
+        end else begin
+          assert (l == p + 4);
+          assert (Seq.index co l == Seq.index co (p + 4))
+        end
+    in
+    Classical.forall_intro aux
+#pop-options
+
+(* All-32-chunk composition for layer 2.  Witness functions: `t b p`
+   (Montgomery butterfly product for pair p of chunk b) and `zm b`
+   (the impl's Mont-form zeta for chunk b). *)
+#push-options "--fuel 0 --ifuel 1 --z3rlimit 200 --split_queries always"
+let lemma_ntt_layer_2_step_to_hacspec_poly
+    (input transformed: t_Array (t_Array i32 (mk_usize 8)) (mk_usize 32))
+    (t: (b: nat{b < 32} -> p: nat{p < 4} -> i32))
+    (zm: (b: nat{b < 32} -> i32))
+    : Lemma
+        (requires
+          (* Same trigger-alignment split as layer 1: the zeta congruence
+             only mentions `zm b` (no p), so it gets its own per-b forall. *)
+          (forall (b: nat{b < 32}) (p: nat{p < 4}).
+           (let ci = Seq.index input b in
+            let co = Seq.index transformed b in
+            v (Seq.index co p)     == v (Seq.index ci p) + v (t b p) /\
+            v (Seq.index co (p+4)) == v (Seq.index ci p) - v (t b p) /\
+            (v (t b p)) % 8380417 == (v (Seq.index ci (p+4)) * v (zm b) * 8265825) % 8380417)) /\
+          (forall (b: nat{b < 32}).
+           (v (zm b)) % 8380417 ==
+           (v (Hacspec_ml_dsa.Ntt.v_ZETAS.[ mk_usize (b + 32) ] <: i32) * pow2 32) % 8380417))
+        (ensures
+          (let in_flat = simd_units_to_array input in
+           let out_flat = simd_units_to_array transformed in
+           let spec = Hacspec_ml_dsa.Ntt.ntt_layer in_flat (mk_usize 2) in
+           forall (i: nat). i < 256 ==>
+             (v (Seq.index out_flat i)) % 8380417 ==
+             (v (Seq.index spec i)) % 8380417))
+  = let q : pos = 8380417 in
+    let in_flat = simd_units_to_array input in
+    let out_flat = simd_units_to_array transformed in
+    let spec = Hacspec_ml_dsa.Ntt.ntt_layer in_flat (mk_usize 2) in
+    let chunk (b: nat{b < 32}) : Lemma
+        (forall (l: nat). l < 8 ==>
+           (v (Seq.index out_flat (8*b + l))) % q ==
+           (v (Seq.index spec (8*b + l))) % q)
+      = lemma_ntt_layer_2_chunk_to_hacspec input transformed b
+          (t b 0) (t b 1) (t b 2) (t b 3)
+          (zm b)
+    in
+    let aux (i: nat{i < 256}) : Lemma
+        ((v (Seq.index out_flat i)) % q == (v (Seq.index spec i)) % q)
+      = let b : nat = i / 8 in
+        let l : nat = i % 8 in
+        assert (b < 32 /\ l < 8);
+        assert (8*b + l == i);
+        chunk b;
+        assert ((v (Seq.index out_flat (8*b + l))) % q ==
+                (v (Seq.index spec (8*b + l))) % q)
+    in
+    Classical.forall_intro aux
+#pop-options
