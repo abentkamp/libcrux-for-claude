@@ -876,12 +876,287 @@ let lemma_butterfly_step_fe
     L.lemma_mod_sub_distr (v lo_old) (v hi_old * zeta_std) q
 #pop-options
 
-(* TODO (next session): per-chunk lane bridge
-   `lemma_ntt_layer_0_chunk_to_hacspec` + polynomial-level composition
-   `lemma_ntt_layer_0_step_to_hacspec_poly`.  Both flagged as Z3-risky
-   (port-plan §5#3) — i32 mod q = 8380417 is slower for SMT than ML-KEM's
-   i16/3329, and `Hacspec_ml_dsa.Ntt.ntt_layer` is a `createi`-of-`if`
-   over 256 indices.  Recommended approach: factor `ntt_layer flat 0`
-   into a top-level `let layer_0_lane (i: nat{i < 256}) : i32 = ...`
-   reduction lemma so the per-lane unfold is a one-liner, then compose
-   via `Classical.forall_intro` + `Seq.lemma_eq_intro` over 256 lanes. *)
+(* === NTT layer-0 reducer ===
+   `layer_0_lane p i` is exactly `Hacspec_ml_dsa.Ntt.ntt_layer p 0` at flat
+   index `i`, factored into a top-level definition so the per-lane unfold of
+   the `createi`-of-`if` is a one-liner.  Layer 0 has len=1, k=128:
+     round = i/2,  idx = i%2,  z = v_ZETAS.[i/2 + 128].
+     even (idx=0): mod_q(p.[i] + mod_q(z*p.[i+1])).
+     odd  (idx=1): mod_q(p.[i-1] - mod_q(z*p.[i])). *)
+let layer_0_lane (p: t_Array i32 (mk_usize 256)) (i: usize{i <. mk_usize 256}) : i32 =
+  let round:usize = i /! mk_usize 2 in
+  let idx:usize = i %! mk_usize 2 in
+  let z:i64 = cast (Hacspec_ml_dsa.Ntt.v_ZETAS.[ round +! mk_usize 128 <: usize ] <: i32) <: i64 in
+  if idx <. mk_usize 1
+  then
+    let t:i32 =
+      Hacspec_ml_dsa.Arithmetic.mod_q (z *! (cast (p.[ i +! mk_usize 1 <: usize ] <: i32) <: i64)
+          <:
+          i64)
+    in
+    Hacspec_ml_dsa.Arithmetic.mod_q ((cast (p.[ i ] <: i32) <: i64) +!
+        (cast (t <: i32) <: i64)
+        <:
+        i64)
+  else
+    let t:i32 =
+      Hacspec_ml_dsa.Arithmetic.mod_q (z *! (cast (p.[ i ] <: i32) <: i64) <: i64)
+    in
+    Hacspec_ml_dsa.Arithmetic.mod_q ((cast (p.[ i -! mk_usize 1 <: usize ] <: i32) <: i64) -!
+        (cast (t <: i32) <: i64)
+        <:
+        i64)
+
+(* Reduction lemma: `ntt_layer p 0` at flat index `i` equals `layer_0_lane p i`.
+   Discharges via the `createi_lemma` SMTPat + the fact that at layer 0
+   `len = 1 << 0 = 1`, `k = 128 / 1 = 128`, `2*len = 2`.  The `ntt_layer`
+   createi body is heavy; `--split_queries always` keeps the discharge
+   deterministic (otherwise a cold/stale-hint run cancels the monolithic VC
+   before splitting). *)
+#push-options "--fuel 0 --ifuel 1 --z3rlimit 150 --split_queries always"
+let lemma_ntt_layer_0_lane (p: t_Array i32 (mk_usize 256)) (i: usize{i <. mk_usize 256})
+    : Lemma (Seq.index (Hacspec_ml_dsa.Ntt.ntt_layer p (mk_usize 0)) (v i) == layer_0_lane p i)
+  = ()
+#pop-options
+
+(* v-image of `Hacspec_ml_dsa.Arithmetic.mod_q`.  `mod_q a = cast (a %! q)`
+   with the (dead) negative fixup; F* machine `%!` is Euclidean so
+   `v (a %! q) = (v a) % q ∈ [0, q-1]`, the fixup branch never fires, and
+   the cast i64→i32 is exact.  Hence `v (mod_q a) == (v a) % q`. *)
+#push-options "--fuel 0 --ifuel 1 --z3rlimit 80"
+let lemma_mod_q_v (a: i64)
+    : Lemma (v (Hacspec_ml_dsa.Arithmetic.mod_q a) == (v a) % 8380417)
+  = let q : i32 = Hacspec_ml_dsa.Parameters.v_Q in
+    let cq : i64 = cast q <: i64 in
+    assert (v cq == 8380417);
+    let r0 : i64 = a %! cq in
+    assert (v r0 == (v a) % 8380417);
+    L.lemma_mod_lt (v a) 8380417;
+    assert (0 <= v r0 /\ v r0 <= 8380416);
+    let r : i32 = cast r0 <: i32 in
+    assert (v r == (v a) % 8380417)
+#pop-options
+
+(* Per-pair butterfly -> spec-lane bridge.  Combines `lemma_butterfly_step_fe`
+   (Mont -> mod-q congruence on lo_new/hi_new) with `lemma_mod_q_v` to relate
+   the impl's two new lanes to the spec's two `mod_q`-reduced lanes.
+   `z` is the standard-form table zeta `v_ZETAS.[4b+p+128]`; `zeta_std = v z`.
+   The two `ensures` are exactly the bodies of `layer_0_lane p (8b+2p)`
+   (even) and `layer_0_lane p (8b+2p+1)` (odd), with `lo_old = p.[8b+2p]`,
+   `hi_old = p.[8b+2p+1]`. *)
+#push-options "--fuel 0 --ifuel 1 --z3rlimit 200"
+let lemma_layer_0_pair_spec
+    (lo_old hi_old t lo_new hi_new zeta_mont z: i32)
+    : Lemma
+        (requires
+          v lo_new == v lo_old + v t /\
+          v hi_new == v lo_old - v t /\
+          (v t) % 8380417 == (v hi_old * v zeta_mont * 8265825) % 8380417 /\
+          (v zeta_mont) % 8380417 == (v z * pow2 32) % 8380417)
+        (ensures
+          (let zi : i64 = cast z <: i64 in
+           let lo_i : i64 = cast lo_old <: i64 in
+           let hi_i : i64 = cast hi_old <: i64 in
+           let tt : i32 = Hacspec_ml_dsa.Arithmetic.mod_q (zi *! hi_i <: i64) in
+           let even_spec : i32 =
+             Hacspec_ml_dsa.Arithmetic.mod_q (lo_i +! (cast tt <: i64) <: i64) in
+           let odd_spec : i32 =
+             Hacspec_ml_dsa.Arithmetic.mod_q (lo_i -! (cast tt <: i64) <: i64) in
+           (v lo_new) % 8380417 == (v even_spec) % 8380417 /\
+           (v hi_new) % 8380417 == (v odd_spec) % 8380417))
+  = let q : pos = 8380417 in
+    lemma_butterfly_step_fe lo_old hi_old t lo_new hi_new zeta_mont (v z);
+    // butterfly gives: lo_new ≡ lo_old + hi_old*z, hi_new ≡ lo_old - hi_old*z (mod q)
+    assert ((v lo_new) % q == (v lo_old + v hi_old * v z) % q);
+    assert ((v hi_new) % q == (v lo_old - v hi_old * v z) % q);
+    let zi : i64 = cast z <: i64 in
+    let lo_i : i64 = cast lo_old <: i64 in
+    let hi_i : i64 = cast hi_old <: i64 in
+    assert (v zi == v z /\ v lo_i == v lo_old /\ v hi_i == v hi_old);
+    let prod : i64 = zi *! hi_i in
+    assert (v prod == v z * v hi_old);
+    let tt : i32 = Hacspec_ml_dsa.Arithmetic.mod_q prod in
+    lemma_mod_q_v prod;
+    assert (v tt == (v z * v hi_old) % q);
+    let tt_i : i64 = cast tt <: i64 in
+    assert (v tt_i == v tt);
+    // even lane
+    let even_sum : i64 = lo_i +! tt_i in
+    assert (v even_sum == v lo_old + (v z * v hi_old) % q);
+    let even_spec : i32 = Hacspec_ml_dsa.Arithmetic.mod_q even_sum in
+    lemma_mod_q_v even_sum;
+    assert (v even_spec == (v lo_old + (v z * v hi_old) % q) % q);
+    L.lemma_mod_plus_distr_r (v lo_old) (v z * v hi_old) q;
+    assert ((v lo_old + (v z * v hi_old) % q) % q == (v lo_old + v z * v hi_old) % q);
+    // odd lane
+    let odd_sub : i64 = lo_i -! tt_i in
+    assert (v odd_sub == v lo_old - (v z * v hi_old) % q);
+    let odd_spec : i32 = Hacspec_ml_dsa.Arithmetic.mod_q odd_sub in
+    lemma_mod_q_v odd_sub;
+    assert (v odd_spec == (v lo_old - (v z * v hi_old) % q) % q);
+    L.lemma_mod_sub_distr (v lo_old) (v z * v hi_old) q;
+    assert ((v lo_old - (v z * v hi_old) % q) % q == (v lo_old - v z * v hi_old) % q);
+    // tie together: hi_old*z == z*hi_old
+    assert (v hi_old * v z == v z * v hi_old)
+#pop-options
+
+(* === Per-chunk lane bridge: lemma_ntt_layer_0_chunk_to_hacspec ===
+
+   Relates the impl's within-chunk layer-0 transform of ONE chunk `b` to
+   `Hacspec_ml_dsa.Ntt.ntt_layer (simd_units_to_array input) 0` on chunk
+   `b`'s 8 flat lanes.  The impl applies 4 within-pair butterflies on lane
+   pairs (0,1),(2,3),(4,5),(6,7) of chunk `b`; the spec, restricted to those
+   8 indices, is exactly that (len=1, k=128, pair index 4b+p).
+
+   `input` / `transformed` are the flat-array views BEFORE/AFTER the chunk-b
+   transform.  Per pair p∈{0..3}, the consumer supplies the witness `t_p`
+   (the Montgomery butterfly product) and `zeta_mont_p` (the impl's
+   hardcoded Mont-form zeta), together with the four butterfly relations
+   that the impl's `simd_unit_ntt_step` FE-post provides, and the per-zeta
+   congruence `(v zeta_mont_p) % q == (v v_ZETAS.[4b+p+128] * pow2 32) % q`
+   (consumer discharges via `Spec.MLDSA.Ntt.zeta_r`).
+
+   Conclusion: per-lane mod-q congruence on chunk b's 8 lanes (the impl is
+   in bounded Montgomery form, NOT reduced to [0,q), so equality is only
+   modulo q — exactly as `lemma_butterfly_step_fe` states).  The hypotheses
+   tie `transformed`/`input` to a single chunk via `simd_units_to_array`'s
+   index reveal; chunk-`b` lanes are read on both sides. *)
+(* Per-pair spec-lane bridge in CLEAN context (one VC per pair).  For chunk
+   `b` pair `p`, given the four butterfly relations + zeta congruence on that
+   pair's lanes, proves the two spec-lane congruences (even = 8b+2p,
+   odd = 8b+2p+1).  Reduces the spec via `lemma_ntt_layer_0_lane` and bridges
+   via `lemma_layer_0_pair_spec`.  Factored top-level so the createi unfold
+   runs in a minimal context (the in-monolithic-chunk version saturated). *)
+#push-options "--fuel 0 --ifuel 1 --z3rlimit 300 --split_queries always"
+let lemma_layer_0_chunk_pair
+    (input transformed: t_Array (t_Array i32 (mk_usize 8)) (mk_usize 32))
+    (b: nat{b < 32}) (p: nat{p < 4})
+    (tp zmp: i32)
+    : Lemma
+        (requires
+          (let ci = Seq.index input b in
+           let co = Seq.index transformed b in
+           let z : i32 = Hacspec_ml_dsa.Ntt.v_ZETAS.[ mk_usize (4*b + p + 128) ] in
+           v (Seq.index co (2*p))   == v (Seq.index ci (2*p)) + v tp /\
+           v (Seq.index co (2*p+1)) == v (Seq.index ci (2*p)) - v tp /\
+           (v tp) % 8380417 == (v (Seq.index ci (2*p+1)) * v zmp * 8265825) % 8380417 /\
+           (v zmp) % 8380417 == (v z * pow2 32) % 8380417))
+        (ensures
+          (let in_flat = simd_units_to_array input in
+           let co = Seq.index transformed b in
+           let spec = Hacspec_ml_dsa.Ntt.ntt_layer in_flat (mk_usize 0) in
+           (v (Seq.index co (2*p)))   % 8380417 == (v (Seq.index spec (8*b + 2*p)))   % 8380417 /\
+           (v (Seq.index co (2*p+1))) % 8380417 == (v (Seq.index spec (8*b + 2*p+1))) % 8380417))
+  = let q : pos = 8380417 in
+    let ci = Seq.index input b in
+    let co = Seq.index transformed b in
+    let in_flat = simd_units_to_array input in
+    let lo_old = Seq.index ci (2*p) in
+    let hi_old = Seq.index ci (2*p+1) in
+    let lo_new = Seq.index co (2*p) in
+    let hi_new = Seq.index co (2*p+1) in
+    let z : i32 = Hacspec_ml_dsa.Ntt.v_ZETAS.[ mk_usize (4*b + p + 128) ] in
+    let i_even : usize = mk_usize (8*b + 2*p) in
+    let i_odd  : usize = mk_usize (8*b + 2*p + 1) in
+    // in_flat lanes at i_even / i_odd are ci.[2p] / ci.[2p+1].
+    lemma_simd_units_to_array_reveal input b (2*p);
+    lemma_simd_units_to_array_reveal input b (2*p+1);
+    assert (Seq.index in_flat (8*b + 2*p) == lo_old);
+    assert (Seq.index in_flat (8*b + 2*p + 1) == hi_old);
+    // index identities so layer_0_lane unfolds to the matching pair / zeta.
+    assert (v i_even == 8*b + 2*p);
+    assert (v i_odd == 8*b + 2*p + 1);
+    assert ((8*b + 2*p) / 2 == 4*b + p);
+    assert ((8*b + 2*p + 1) / 2 == 4*b + p);
+    assert ((8*b + 2*p) % 2 == 0);
+    assert ((8*b + 2*p + 1) % 2 == 1);
+    // reduce the two spec lanes to layer_0_lane (createi unfold, minimal context)
+    lemma_ntt_layer_0_lane in_flat i_even;
+    lemma_ntt_layer_0_lane in_flat i_odd;
+    // bridge the impl pair to the two spec mod_q lanes
+    lemma_layer_0_pair_spec lo_old hi_old tp lo_new hi_new zmp z
+#pop-options
+
+(* === Per-chunk lane bridge: lemma_ntt_layer_0_chunk_to_hacspec ===
+
+   Relates the impl's within-chunk layer-0 transform of ONE chunk `b` to
+   `Hacspec_ml_dsa.Ntt.ntt_layer (simd_units_to_array input) 0` on chunk
+   `b`'s 8 flat lanes.  The impl applies 4 within-pair butterflies on lane
+   pairs (0,1),(2,3),(4,5),(6,7) of chunk `b`; the spec, restricted to those
+   8 indices, is exactly that (len=1, k=128, pair index 4b+p).
+
+   `input` / `transformed` are the flat-array views BEFORE/AFTER the chunk-b
+   transform.  Per pair p∈{0..3}, the consumer supplies the witness `t_p`
+   (the Montgomery butterfly product) and `zeta_mont_p` (the impl's
+   hardcoded Mont-form zeta), together with the four butterfly relations
+   that the impl's `simd_unit_ntt_step` FE-post provides, and the per-zeta
+   congruence `(v zeta_mont_p) % q == (v v_ZETAS.[4b+p+128] * pow2 32) % q`
+   (consumer discharges via `Spec.MLDSA.Ntt.zeta_r`).
+
+   Conclusion: per-lane mod-q congruence on chunk b's 8 lanes (the impl is
+   in bounded Montgomery form, NOT reduced to [0,q), so equality is only
+   modulo q — exactly as `lemma_butterfly_step_fe` states).  Thin dispatcher
+   over the 4 clean per-pair lemmas + a forall over the 8 lanes. *)
+#push-options "--fuel 0 --ifuel 1 --z3rlimit 200 --split_queries always"
+let lemma_ntt_layer_0_chunk_to_hacspec
+    (input transformed: t_Array (t_Array i32 (mk_usize 8)) (mk_usize 32))
+    (b: nat{b < 32})
+    (t0 t1 t2 t3 zm0 zm1 zm2 zm3: i32)
+    : Lemma
+        (requires
+          (let ci = Seq.index input b in
+           let co = Seq.index transformed b in
+           let z (p:nat{p<4}) : i32 = Hacspec_ml_dsa.Ntt.v_ZETAS.[ mk_usize (4*b + p + 128) ] in
+           (* pair 0: lanes 0,1 *)
+           v (Seq.index co 0) == v (Seq.index ci 0) + v t0 /\
+           v (Seq.index co 1) == v (Seq.index ci 0) - v t0 /\
+           (v t0) % 8380417 == (v (Seq.index ci 1) * v zm0 * 8265825) % 8380417 /\
+           (v zm0) % 8380417 == (v (z 0) * pow2 32) % 8380417 /\
+           (* pair 1: lanes 2,3 *)
+           v (Seq.index co 2) == v (Seq.index ci 2) + v t1 /\
+           v (Seq.index co 3) == v (Seq.index ci 2) - v t1 /\
+           (v t1) % 8380417 == (v (Seq.index ci 3) * v zm1 * 8265825) % 8380417 /\
+           (v zm1) % 8380417 == (v (z 1) * pow2 32) % 8380417 /\
+           (* pair 2: lanes 4,5 *)
+           v (Seq.index co 4) == v (Seq.index ci 4) + v t2 /\
+           v (Seq.index co 5) == v (Seq.index ci 4) - v t2 /\
+           (v t2) % 8380417 == (v (Seq.index ci 5) * v zm2 * 8265825) % 8380417 /\
+           (v zm2) % 8380417 == (v (z 2) * pow2 32) % 8380417 /\
+           (* pair 3: lanes 6,7 *)
+           v (Seq.index co 6) == v (Seq.index ci 6) + v t3 /\
+           v (Seq.index co 7) == v (Seq.index ci 6) - v t3 /\
+           (v t3) % 8380417 == (v (Seq.index ci 7) * v zm3 * 8265825) % 8380417 /\
+           (v zm3) % 8380417 == (v (z 3) * pow2 32) % 8380417))
+        (ensures
+          (let in_flat = simd_units_to_array input in
+           let out_flat = simd_units_to_array transformed in
+           let spec = Hacspec_ml_dsa.Ntt.ntt_layer in_flat (mk_usize 0) in
+           (forall (l: nat). l < 8 ==>
+             (v (Seq.index out_flat (8*b + l))) % 8380417 ==
+             (v (Seq.index spec (8*b + l))) % 8380417)))
+  = let q : pos = 8380417 in
+    let co = Seq.index transformed b in
+    let out_flat = simd_units_to_array transformed in
+    let spec = Hacspec_ml_dsa.Ntt.ntt_layer (simd_units_to_array input) (mk_usize 0) in
+    // discharge each pair in its own clean lemma
+    lemma_layer_0_chunk_pair input transformed b 0 t0 zm0;
+    lemma_layer_0_chunk_pair input transformed b 1 t1 zm1;
+    lemma_layer_0_chunk_pair input transformed b 2 t2 zm2;
+    lemma_layer_0_chunk_pair input transformed b 3 t3 zm3;
+    // per-lane: pick pair p = l/2, reveal out_flat lane, case even/odd.
+    let aux (l: nat{l < 8}) : Lemma
+        ((v (Seq.index out_flat (8*b + l))) % q == (v (Seq.index spec (8*b + l))) % q)
+      = let p : nat = l / 2 in
+        assert (p < 4);
+        lemma_simd_units_to_array_reveal transformed b l;
+        assert (Seq.index out_flat (8*b + l) == Seq.index co l);
+        if l % 2 = 0 then begin
+          assert (l == 2*p);
+          assert (Seq.index co l == Seq.index co (2*p))
+        end else begin
+          assert (l == 2*p + 1);
+          assert (Seq.index co l == Seq.index co (2*p + 1))
+        end
+    in
+    Classical.forall_intro aux
+#pop-options
