@@ -19,8 +19,8 @@ let simd_layer_factor (step:usize) =
 )]
 #[hax_lib::fstar::before(r#"[@@ "opaque_to_smt"]"#)]
 #[hax_lib::requires(fstar!(r#"
-    v step <= 4 /\ v index + v step < 8 /\    
-    Spec.Utils.is_i32b 
+    1 <= v step /\ v step <= 4 /\ v index + v step < 8 /\
+    Spec.Utils.is_i32b
         (v $NTT_BASE_BOUND + (simd_layer_factor $step * v $FIELD_MAX))
         (Seq.index ${simd_unit}.f_values (v $index)) /\
     Spec.Utils.is_i32b 
@@ -30,17 +30,26 @@ let simd_layer_factor (step:usize) =
 "#))]
 #[hax_lib::ensures(|_| fstar!(r#"
     Spec.Utils.modifies2_8 ${simd_unit}.f_values ${simd_unit}_future.f_values index (index +! step) /\
-    Spec.Utils.is_i32b 
+    Spec.Utils.is_i32b
         (v $NTT_BASE_BOUND + ((simd_layer_factor $step + 1)  * v $FIELD_MAX))
         (Seq.index ${simd_unit}_future.f_values (v $index)) /\
-    Spec.Utils.is_i32b 
+    Spec.Utils.is_i32b
         (v $NTT_BASE_BOUND + ((simd_layer_factor $step + 1)  * v $FIELD_MAX))
-        (Seq.index ${simd_unit}_future.f_values (v $index + v $step))
+        (Seq.index ${simd_unit}_future.f_values (v $index + v $step)) /\
+    (let t = Libcrux_ml_dsa.Simd.Portable.Arithmetic.montgomery_multiply_fe_by_fer
+               (Seq.index ${simd_unit}.f_values (v $index + v $step)) $zeta in
+     v (Seq.index ${simd_unit}_future.f_values (v $index)) ==
+       v (Seq.index ${simd_unit}.f_values (v $index)) + v t /\
+     v (Seq.index ${simd_unit}_future.f_values (v $index + v $step)) ==
+       v (Seq.index ${simd_unit}.f_values (v $index)) - v t /\
+     (v t) % 8380417 ==
+       (v (Seq.index ${simd_unit}.f_values (v $index + v $step)) * v $zeta * 8265825) % 8380417)
 "#) )]
 fn simd_unit_ntt_step(simd_unit: &mut Coefficients, zeta: i32, index: usize, step: usize) {
     let t = montgomery_multiply_fe_by_fer(simd_unit.values[index + step], zeta);
     simd_unit.values[index + step] = simd_unit.values[index] - t;
     simd_unit.values[index] = simd_unit.values[index] + t;
+    hax_lib::fstar!(r#"reveal_opaque (`%Spec.MLDSA.Math.mod_q) (Spec.MLDSA.Math.mod_q)"#);
 }
 
 #[inline(always)]
@@ -54,7 +63,25 @@ fn simd_unit_ntt_step(simd_unit: &mut Coefficients, zeta: i32, index: usize, ste
     Spec.Utils.is_i32b 4190208 $zeta3
 "#))]
 #[hax_lib::ensures(|_| fstar!(r#"
-    Spec.Utils.is_i32b_array (v $NTT_BASE_BOUND + 8 * v $FIELD_MAX) ${simd_unit}_future.f_values
+    Spec.Utils.is_i32b_array (v $NTT_BASE_BOUND + 8 * v $FIELD_MAX) ${simd_unit}_future.f_values /\
+    (let ci = ${simd_unit}.f_values in
+     let co = ${simd_unit}_future.f_values in
+     let t0 = Libcrux_ml_dsa.Simd.Portable.Arithmetic.montgomery_multiply_fe_by_fer (Seq.index ci 1) $zeta0 in
+     let t1 = Libcrux_ml_dsa.Simd.Portable.Arithmetic.montgomery_multiply_fe_by_fer (Seq.index ci 3) $zeta1 in
+     let t2 = Libcrux_ml_dsa.Simd.Portable.Arithmetic.montgomery_multiply_fe_by_fer (Seq.index ci 5) $zeta2 in
+     let t3 = Libcrux_ml_dsa.Simd.Portable.Arithmetic.montgomery_multiply_fe_by_fer (Seq.index ci 7) $zeta3 in
+     v (Seq.index co 0) == v (Seq.index ci 0) + v t0 /\
+     v (Seq.index co 1) == v (Seq.index ci 0) - v t0 /\
+     (v t0) % 8380417 == (v (Seq.index ci 1) * v $zeta0 * 8265825) % 8380417 /\
+     v (Seq.index co 2) == v (Seq.index ci 2) + v t1 /\
+     v (Seq.index co 3) == v (Seq.index ci 2) - v t1 /\
+     (v t1) % 8380417 == (v (Seq.index ci 3) * v $zeta1 * 8265825) % 8380417 /\
+     v (Seq.index co 4) == v (Seq.index ci 4) + v t2 /\
+     v (Seq.index co 5) == v (Seq.index ci 4) - v t2 /\
+     (v t2) % 8380417 == (v (Seq.index ci 5) * v $zeta2 * 8265825) % 8380417 /\
+     v (Seq.index co 6) == v (Seq.index ci 6) + v t3 /\
+     v (Seq.index co 7) == v (Seq.index ci 6) - v t3 /\
+     (v t3) % 8380417 == (v (Seq.index ci 7) * v $zeta3 * 8265825) % 8380417)
 "#) )]
 pub fn simd_unit_ntt_at_layer_0(
     simd_unit: &mut Coefficients,
