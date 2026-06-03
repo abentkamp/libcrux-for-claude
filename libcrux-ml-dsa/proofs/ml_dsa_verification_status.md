@@ -50,8 +50,8 @@ The "Panic-safe" aggregate (sometimes useful for headline numbers) = Panic-free 
 |            | invntt            |    1 |  21 |   0 |     |   4 |    0 |     17 |       0 |
 |            | sample            |    1 |   3 |   0 |     |   0 |    3 |      0 |       0 |
 |            | encoding          |    6 |  19 |   0 |     |   0 |   19 |      0 |       0 |
-|            | simd (top)        |    1 |  33 |   2 |     |   1 |   15 |      2 |      13 |
-|            | **Portable total** | **12** | **118** | **2** |     | **10** | **40** | **38** |  **28** |
+|            | simd (top)        |    1 |  33 |   1 |     |   1 |   15 |      3 |      13 |
+|            | **Portable total** | **12** | **118** | **1** |     | **10** | **40** | **39** |  **28** |
 |            |                   |      |     |     |     |     |      |        |         |
 | _Avx2_     | vector_type       |    1 |   3 |   0 |     |   3 |    0 |      0 |       0 |
 |            | arithmetic        |    1 |  14 |   0 |     |   2 |    4 |      1 |       7 |
@@ -66,12 +66,12 @@ The "Panic-safe" aggregate (sometimes useful for headline numbers) = Panic-free 
 
 - **Total modules**: 58
 - **Total functions**: 595
-- **Lax** (admitted): 43 (7.2%)
+- **Lax** (admitted): 42 (7.1%)
 - **Unverified** (not extracted): 6 (1.0%)
-- **Panic-safe** (PF + Math + Bounds + Hacspec): 546 (91.8%)
+- **Panic-safe** (PF + Math + Bounds + Hacspec): 547 (91.9%)
   - Panic-free only (no further proof): 284 (47.7%)
   - Math (non-trivial ensures, no bounds/spec match): 135 (22.7%)
-  - Bounds (range/interval ensures): 66 (11.1%)
+  - Bounds (range/interval ensures): 67 (11.3%)
   - Hacspec (cites high-level spec): 61 (10.3%)
 
 ### Modules per category
@@ -79,7 +79,7 @@ The "Panic-safe" aggregate (sometimes useful for headline numbers) = Panic-free 
 | Category     | Modules |  Fns | Lax | Unv |  PF | Math | Bounds | Hacspec |
 | ------------ | ------- | ---- | --- | --- | --- | ---- | ------ | ------- |
 | Generic      |      31 |  360 |  24 |   6 | 253 |   42 |     25 |      10 |
-| Portable     |      12 |  118 |   2 |   0 |  10 |   40 |     38 |      28 |
+| Portable     |      12 |  118 |   1 |   0 |  10 |   40 |     39 |      28 |
 | Avx2         |      15 |  117 |  17 |   0 |  21 |   53 |      3 |      23 |
 
 ## Unverified Rust modules (not extracted to F\*)
@@ -104,17 +104,16 @@ Functions classified as lax due to `admit ()` (or `--admit_smt_queries true`) in
 | Generic/sample            |   528 |
 | Generic/encoding          |    69 |
 | Generic/ml_dsa_generic    |    75 |
-| Generic/ml_dsa_generic    |   220 |
-| Generic/ml_dsa_generic    |   450 |
-| Generic/ml_dsa_generic    |   573 |
-| Generic/ml_dsa_generic    |   611 |
-| Generic/ml_dsa_generic    |   655 |
-| Generic/ml_dsa_generic    |   705 |
-| Generic/ml_dsa_generic    |   754 |
-| Generic/ml_dsa_generic    |   782 |
-| Generic/ml_dsa_generic    |   834 |
-| Portable/simd (top)       |   687 |
-| Portable/simd (top)       |   702 |
+| Generic/ml_dsa_generic    |   228 |
+| Generic/ml_dsa_generic    |   458 |
+| Generic/ml_dsa_generic    |   581 |
+| Generic/ml_dsa_generic    |   619 |
+| Generic/ml_dsa_generic    |   663 |
+| Generic/ml_dsa_generic    |   713 |
+| Generic/ml_dsa_generic    |   762 |
+| Generic/ml_dsa_generic    |   790 |
+| Generic/ml_dsa_generic    |   842 |
+| Portable/simd (top)       |   713 |
 | Avx2/encoding             |    57 |
 | Avx2/encoding             |   108 |
 | Avx2/encoding             |    51 |
@@ -122,10 +121,10 @@ Functions classified as lax due to `admit ()` (or `--admit_smt_queries true`) in
 | Avx2/encoding             |   184 |
 | Avx2/encoding             |   212 |
 | Avx2/encoding             |    68 |
-| Avx2/simd (top)           |   390 |
-| Avx2/simd (top)           |   417 |
-| Avx2/simd (top)           |   712 |
-| Avx2/simd (top)           |   726 |
-| Avx2/simd (top)           |   740 |
-| Avx2/simd (top)           |   912 |
-| Avx2/simd (top)           |   928 |
+| Avx2/simd (top)           |   394 |
+| Avx2/simd (top)           |   421 |
+| Avx2/simd (top)           |   717 |
+| Avx2/simd (top)           |   731 |
+| Avx2/simd (top)           |   745 |
+| Avx2/simd (top)           |   917 |
+| Avx2/simd (top)           |   940 |
