@@ -23,7 +23,7 @@ check_version(["cargo", "hax", "--version"], "hax", HAX_VERSION)
 check_version(["aeneas", "-version"], "aeneas", AENEAS_VERSION)
 
 result = subprocess.run(
-    ["cargo", "hax", "into", "aeneas-lean", '--aeneas-args="-split-files"'],
+    ["cargo", "hax", "into", "aeneas-lean", '--aeneas-args="-core-models-lib"'],
     env={**os.environ, "RUSTFLAGS": "--cfg hax_backend_lean"},
     capture_output=True,
     text=True,
@@ -44,20 +44,21 @@ for line in result.stderr.splitlines():
 if result.returncode != 0:
     sys.exit(result.returncode)
 
-# Remove the FunsExternal template emitted by aeneas; the real
-# FunsExternal.lean is checked into the repo.
-template = Path("proofs/aeneas-lean/HacspecSha3/Extraction/FunsExternal_Template.lean")
-template.unlink(missing_ok=True)
-
 funs_lean = Path("proofs/aeneas-lean/HacspecSha3/Extraction/Funs.lean")
+# Remove split-files leftovers, in case the project was previously extracted
+# with `-split-files`; with `-core-models-lib` aeneas emits a single Funs.lean.
+for stale in ("Types.lean", "FunsExternal.lean", "FunsExternal_Template.lean"):
+    (funs_lean.parent / stale).unlink(missing_ok=True)
+
 content = funs_lean.read_text()
 
-# Aeneas emits `import HacspecSha3.X` for split-files outputs, but the files
-# actually live under `HacspecSha3/Extraction/`. Rewrite the imports to match.
+# Inject the Missing.lean import (which extends CoreModels with helpers the
+# `-core-models-lib` extraction relies on).
 content = re.sub(
-    r"^import HacspecSha3\.(Types|FunsExternal)\b",
-    r"import HacspecSha3.Extraction.\1",
+    r"(^import Aeneas\b)",
+    r"\1\nimport HacspecSha3.Missing",
     content,
+    count=1,
     flags=re.MULTILINE,
 )
 
