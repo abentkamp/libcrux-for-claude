@@ -60,6 +60,30 @@ per-chunk dispatcher + all-32-chunk poly composition each.
   flips; this session strengthened existing ensures + added proof-lib
   lemmas, lax count stays 42).
 
+## Follow-up "A" (driver wiring) — scoping (2026-06-04)
+- A2 DONE: `simd_unit_ntt_at_layer_1` + `_2` now carry the FE-form functional
+  post (direct analogs of the verified at_layer_0 post; disjoint-pair reads of
+  the original lanes). All THREE per-SIMD-unit layer fns now expose the
+  butterfly relations the chunk lemmas consume.
+- A1 FINDING: there is NO clean forall `v_ZETAS[idx] == zeta idx` bridge —
+  `Spec.MLDSA.Ntt.zeta` is a `match` (not normalizer-friendly at symbolic
+  idx), so the zeta congruence `(v zm)%q == (v v_ZETAS[idx]*pow2 32)%q` is
+  inherently per-CONCRETE-idx (ground `assert_norm`). Confirmed the impl's
+  hardcoded round constants ARE `zeta_r(idx)` (round0 layer0 = zeta_r(128..131)
+  = 2091667,3407706,2316500,3817976) and `v_ZETAS[idx]==zeta(idx)` for idx>=1
+  (v_ZETAS[0]=1 vs zeta(0)=0, unused at L0-2).
+- A3 (the remaining big task) = wire `ntt_at_layer_{0,1,2}` (32-chunk drivers)
+  functional ensures to `lemma_ntt_layer_{0,1,2}_step_to_hacspec_poly`. Needs:
+  (1) add the FE relations to each inner `round` post (so chunk b's relations
+  surface, forall32-style like the existing bounds post); (2) snapshot
+  `orig_re` + state the driver post relative to it; (3) construct witness
+  FUNCTIONS `t:(b->p->i32)`, `zm:(b->i32)` (32-arm lambdas returning the
+  per-round literals — the fiddly part); (4) ~32/64/128 ground `assert_norm`
+  zeta congruences; (5) one poly-lemma call. RISK: the 32-round sequential
+  functional WP (relations relative to a snapshot) — bounds composes
+  automatically, but functional-relative-to-orig may need explicit framing.
+  Estimated multi-hour; its own focused session.
+
 ## Next (layer 3+ / future sessions)
 - Cross-chunk layers 3-7 (Commute.Bridges port) + 8-layer compose to
   `== Hacspec_ml_dsa.Ntt.ntt` driver.
