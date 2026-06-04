@@ -45,15 +45,8 @@ if result.returncode != 0:
     sys.exit(result.returncode)
 
 funs_lean = Path("proofs/aeneas-lean/HacspecSha3/Extraction/Funs.lean")
-# Remove split-files leftovers, in case the project was previously extracted
-# with `-split-files`; with `-core-models-lib` aeneas emits a single Funs.lean.
-for stale in ("Types.lean", "FunsExternal.lean", "FunsExternal_Template.lean"):
-    (funs_lean.parent / stale).unlink(missing_ok=True)
-
 content = funs_lean.read_text()
 
-# Inject the Missing.lean import (which extends CoreModels with helpers the
-# `-core-models-lib` extraction relies on).
 content = re.sub(
     r"(^import Aeneas\b)",
     r"\1\nimport HacspecSha3.Missing",
