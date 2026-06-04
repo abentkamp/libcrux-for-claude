@@ -23,7 +23,7 @@ check_version(["cargo", "hax", "--version"], "hax", HAX_VERSION)
 check_version(["aeneas", "-version"], "aeneas", AENEAS_VERSION)
 
 result = subprocess.run(
-    ["cargo", "hax", "into", "aeneas-lean"],
+    ["cargo", "hax", "into", "aeneas-lean", '--aeneas-args="-split-files"'],
     env={**os.environ, "RUSTFLAGS": "--cfg hax_backend_lean"},
     capture_output=True,
     text=True,
@@ -46,10 +46,14 @@ if result.returncode != 0:
 
 funs_lean = Path("proofs/aeneas-lean/HacspecSha3/Extraction/Funs.lean")
 content = funs_lean.read_text()
+
+# Aeneas emits `import HacspecSha3.X` for split-files outputs, but the files
+# actually live under `HacspecSha3/Extraction/`. Rewrite the imports to match.
 content = re.sub(
-    r"import Aeneas",
-    "import Aeneas\nimport HacspecSha3.Missing\nopen core_models",
+    r"^import HacspecSha3\.(Types|FunsExternal)\b",
+    r"import HacspecSha3.Extraction.\1",
     content,
+    flags=re.MULTILINE,
 )
 
 # https://github.com/AeneasVerif/aeneas/issues/984
