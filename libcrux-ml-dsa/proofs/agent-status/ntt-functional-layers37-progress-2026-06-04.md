@@ -340,3 +340,15 @@ mod_q-reduced; may need a per-step "both sides mod_q" framing). Add functional e
 - Wired into ntt.rs: compose block as before-block on top ntt; 8 #[cfg(hax)] snapshots (s0,s7..s1);
   functional ensures (forall i<256 out_flat[i]%q == (ntt in_flat)[i]%q); compose call. Extracted clean
   (15 lemmas present). Gate build IN PROGRESS (build_id 4f934652).
+
+---
+
+# ★★ FORWARD-NTT FUNCTIONAL CORRECTNESS — COMPLETE (2026-06-05) ★★
+- **ntt_at_layer_{0..7}** all carry `forall i<256. simd_units_to_array(chunks_of_re re_future)[i] % q
+  == (ntt_layer (simd_units_to_array(chunks_of_re re)) L)[i] % q` (admit-free).
+- **top ntt** carries `forall i<256. out_flat[i] % q == (Hacspec_ml_dsa.Ntt.ntt in_flat)[i] % q` (admit-free).
+- Commits on branch ml-dsa-proofs: 15d480d22 (Phase 1 cross-chunk bridges) → 41967d0dc (L3) →
+  32b696cca (L4-7) → f8debd691 (top ntt). NOT pushed (awaiting user).
+- Portable.Ntt gate: "Verified module ... All verification conditions discharged", 0 admits.
+- Full-crate `JOBS=2 ./hax.sh prove`: 79 modules, [CHECK]=74 [ADMIT]=5 (pre-existing), **0 F* errors**.
+- verification_status.md regenerated (Portable ntt fns Bounds→Hacspec).
