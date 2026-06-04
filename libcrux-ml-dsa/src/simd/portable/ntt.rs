@@ -295,6 +295,163 @@ use crate::simd::traits::specs::*;
         Hacspec_ml_dsa.Commute.Chunk.lemma_ntt_layer_0_step_to_hacspec_poly orig fut t zm
     #pop-options
 "#)]
+#[hax_lib::fstar::before(r#"
+[@@ "opaque_to_smt"]
+let unit_fe_post_cross (ci_lo ci_hi co_lo co_hi : t_Array i32 (sz 8))
+                       (zeta: i32{Spec.Utils.is_i32b 4190208 zeta}) : Type0 =
+  (let t0 = Spec.MLDSA.Math.mont_mul (Seq.index ci_hi 0) zeta in
+   let t1 = Spec.MLDSA.Math.mont_mul (Seq.index ci_hi 1) zeta in
+   let t2 = Spec.MLDSA.Math.mont_mul (Seq.index ci_hi 2) zeta in
+   let t3 = Spec.MLDSA.Math.mont_mul (Seq.index ci_hi 3) zeta in
+   let t4 = Spec.MLDSA.Math.mont_mul (Seq.index ci_hi 4) zeta in
+   let t5 = Spec.MLDSA.Math.mont_mul (Seq.index ci_hi 5) zeta in
+   let t6 = Spec.MLDSA.Math.mont_mul (Seq.index ci_hi 6) zeta in
+   let t7 = Spec.MLDSA.Math.mont_mul (Seq.index ci_hi 7) zeta in
+   v (Seq.index co_lo 0) == v (Seq.index ci_lo 0) + v t0 /\
+   v (Seq.index co_hi 0) == v (Seq.index ci_lo 0) - v t0 /\
+   (v t0) % 8380417 == (v (Seq.index ci_hi 0) * v zeta * 8265825) % 8380417 /\
+   v (Seq.index co_lo 1) == v (Seq.index ci_lo 1) + v t1 /\
+   v (Seq.index co_hi 1) == v (Seq.index ci_lo 1) - v t1 /\
+   (v t1) % 8380417 == (v (Seq.index ci_hi 1) * v zeta * 8265825) % 8380417 /\
+   v (Seq.index co_lo 2) == v (Seq.index ci_lo 2) + v t2 /\
+   v (Seq.index co_hi 2) == v (Seq.index ci_lo 2) - v t2 /\
+   (v t2) % 8380417 == (v (Seq.index ci_hi 2) * v zeta * 8265825) % 8380417 /\
+   v (Seq.index co_lo 3) == v (Seq.index ci_lo 3) + v t3 /\
+   v (Seq.index co_hi 3) == v (Seq.index ci_lo 3) - v t3 /\
+   (v t3) % 8380417 == (v (Seq.index ci_hi 3) * v zeta * 8265825) % 8380417 /\
+   v (Seq.index co_lo 4) == v (Seq.index ci_lo 4) + v t4 /\
+   v (Seq.index co_hi 4) == v (Seq.index ci_lo 4) - v t4 /\
+   (v t4) % 8380417 == (v (Seq.index ci_hi 4) * v zeta * 8265825) % 8380417 /\
+   v (Seq.index co_lo 5) == v (Seq.index ci_lo 5) + v t5 /\
+   v (Seq.index co_hi 5) == v (Seq.index ci_lo 5) - v t5 /\
+   (v t5) % 8380417 == (v (Seq.index ci_hi 5) * v zeta * 8265825) % 8380417 /\
+   v (Seq.index co_lo 6) == v (Seq.index ci_lo 6) + v t6 /\
+   v (Seq.index co_hi 6) == v (Seq.index ci_lo 6) - v t6 /\
+   (v t6) % 8380417 == (v (Seq.index ci_hi 6) * v zeta * 8265825) % 8380417 /\
+   v (Seq.index co_lo 7) == v (Seq.index ci_lo 7) + v t7 /\
+   v (Seq.index co_hi 7) == v (Seq.index ci_lo 7) - v t7 /\
+   (v t7) % 8380417 == (v (Seq.index ci_hi 7) * v zeta * 8265825) % 8380417)
+"#)]
+#[hax_lib::fstar::before(r#"
+(* Round-body discharge: bridge the leaf posts (add_post/sub_post are usize/Int
+   foralls; the mmbc post is a nat-indexed forall over mont_mul + mod_q) into the
+   ground cross atom.  add/sub need the `v (mk_usize l) == l` e-match seed (the
+   mmbc nat-foralls match the literal lanes directly).  Mirrors bounded_add_post. *)
+#push-options "--fuel 0 --ifuel 1 --z3rlimit 300 --split_queries always"
+let lemma_round_cross_intro
+    (ci_lo ci_hi co_lo co_hi tmp : t_Array i32 (sz 8))
+    (zeta : i32{Spec.Utils.is_i32b 4190208 zeta})
+  : Lemma
+      (requires
+        Libcrux_ml_dsa.Simd.Traits.Specs.add_post ci_lo tmp co_lo /\
+        Libcrux_ml_dsa.Simd.Traits.Specs.sub_post ci_lo tmp co_hi /\
+        (forall (i:nat). i < 8 ==>
+          Seq.index tmp i == Spec.MLDSA.Math.mont_mul (Seq.index ci_hi i) zeta) /\
+        (forall (i:nat). i < 8 ==>
+          Spec.MLDSA.Math.mod_q (v (Seq.index tmp i)) ==
+          Spec.MLDSA.Math.mod_q (v (Seq.index ci_hi i) * v zeta * 8265825)))
+      (ensures unit_fe_post_cross ci_lo ci_hi co_lo co_hi zeta)
+  = reveal_opaque (`%Libcrux_ml_dsa.Simd.Traits.Specs.add_post) (Libcrux_ml_dsa.Simd.Traits.Specs.add_post);
+    reveal_opaque (`%Libcrux_ml_dsa.Simd.Traits.Specs.sub_post) (Libcrux_ml_dsa.Simd.Traits.Specs.sub_post);
+    reveal_opaque (`%unit_fe_post_cross) unit_fe_post_cross;
+    reveal_opaque (`%Spec.MLDSA.Math.mod_q) (Spec.MLDSA.Math.mod_q);
+    let lane (l:nat{l<8}) : Lemma
+        (v (Seq.index co_lo l) == v (Seq.index ci_lo l) + v (Seq.index tmp l) /\
+         v (Seq.index co_hi l) == v (Seq.index ci_lo l) - v (Seq.index tmp l)) =
+      assert (v (mk_usize l) == l);
+      assert (v (Seq.index co_lo l) == v (Seq.index ci_lo l) + v (Seq.index tmp l));
+      assert (v (Seq.index co_hi l) == v (Seq.index ci_lo l) - v (Seq.index tmp l))
+    in
+    lane 0; lane 1; lane 2; lane 3; lane 4; lane 5; lane 6; lane 7
+#pop-options
+"#)]
+#[hax_lib::fstar::before(r#"
+#push-options "--fuel 0 --ifuel 1 --z3rlimit 100 --split_queries always"
+let lemma_atom_to_bf_cross (ci_lo ci_hi co_lo co_hi : t_Array i32 (sz 8))
+                           (zeta: i32{Spec.Utils.is_i32b 4190208 zeta})
+    : Lemma (requires unit_fe_post_cross ci_lo ci_hi co_lo co_hi zeta)
+            (ensures
+              (forall (l: nat{l < 8}).
+                (let t = Spec.MLDSA.Math.mont_mul (Seq.index ci_hi l) zeta in
+                 v (Seq.index co_lo l) == v (Seq.index ci_lo l) + v t /\
+                 v (Seq.index co_hi l) == v (Seq.index ci_lo l) - v t /\
+                 (v t) % 8380417 == (v (Seq.index ci_hi l) * v zeta * 8265825) % 8380417)))
+  = reveal_opaque (`%unit_fe_post_cross) unit_fe_post_cross;
+    introduce forall (l: nat{l < 8}).
+        (let t = Spec.MLDSA.Math.mont_mul (Seq.index ci_hi l) zeta in
+         v (Seq.index co_lo l) == v (Seq.index ci_lo l) + v t /\
+         v (Seq.index co_hi l) == v (Seq.index ci_lo l) - v t /\
+         (v t) % 8380417 == (v (Seq.index ci_hi l) * v zeta * 8265825) % 8380417)
+    with (match l with | 0 -> () | 1 -> () | 2 -> () | 3 -> () | 4 -> () | 5 -> () | 6 -> () | _ -> ())
+#pop-options
+"#)]
+#[hax_lib::fstar::before(r#"
+(* Driver compose: takes UNCHUNKED orig_re/re so the requires atoms match the
+   outer_3_plus posts EXACTLY (about re.[u].f_values) — the driver discharges it by
+   FRAME only (no chunks_of_re / createi at the driver, avoiding the createi_lemma
+   SMTPat cascade that saturated query 674).  The chunks_of_re bridge runs HERE, in
+   clean context: createi_lemma fires per-u inside aux_bf to equate
+   (chunks_of_re orig_re).[u] == orig_re.[u].f_values. *)
+#push-options "--fuel 0 --ifuel 1 --z3rlimit 200 --split_queries always"
+let lemma_l3_cross_driver_compose
+      (orig_re re: t_Array Libcrux_ml_dsa.Simd.Portable.Vector_type.t_Coefficients (sz 32))
+    : Lemma
+        (requires
+          Spec.Utils.forall32 (fun u ->
+            (u % 2 == 0) ==>
+            unit_fe_post_cross (Seq.index orig_re u).f_values (Seq.index orig_re (u+1)).f_values
+                               (Seq.index re u).f_values (Seq.index re (u+1)).f_values
+                               (mk_i32 (Spec.MLDSA.Ntt.zeta_r (u / 2 + 16)))))
+        (ensures
+          (let in_flat = Hacspec_ml_dsa.Commute.Chunk.simd_units_to_array (chunks_of_re orig_re) in
+           let out_flat = Hacspec_ml_dsa.Commute.Chunk.simd_units_to_array (chunks_of_re re) in
+           let spec = Hacspec_ml_dsa.Ntt.ntt_layer in_flat (mk_usize 3) in
+           forall (i: nat). i < 256 ==>
+             (v (Seq.index out_flat i)) % 8380417 == (v (Seq.index spec i)) % 8380417))
+  = let orig = chunks_of_re orig_re in
+    let fut = chunks_of_re re in
+    let zm (u: nat{u < 32}) : (z: i32{Spec.Utils.is_i32b 4190208 z}) =
+        mk_i32 (Spec.MLDSA.Ntt.zeta_r (u / 2 + 16)) in
+    let t (u: nat{u < 32}) (l: nat{l < 8}) : i32 =
+        Spec.MLDSA.Math.mont_mul (Seq.index (Seq.index orig ((u + 1) % 32)) l) (zm u) in
+    forall32_elim_1d (fun u -> (u % 2 == 0) ==>
+        unit_fe_post_cross (Seq.index orig_re u).f_values (Seq.index orig_re (u+1)).f_values
+                           (Seq.index re u).f_values (Seq.index re (u+1)).f_values (zm u));
+    (let aux_bf (u: nat{u < 32}) : Lemma
+       (forall (l: nat{l < 8}). (u % 2 == 0) ==>
+         (let ci_lo = Seq.index orig u in let ci_hi = Seq.index orig (u+1) in
+          let co_lo = Seq.index fut u in let co_hi = Seq.index fut (u+1) in
+          v (Seq.index co_lo l) == v (Seq.index ci_lo l) + v (t u l) /\
+          v (Seq.index co_hi l) == v (Seq.index ci_lo l) - v (t u l) /\
+          (v (t u l)) % 8380417 == (v (Seq.index ci_hi l) * v (zm u) * 8265825) % 8380417))
+      = if (u % 2 = 0) then begin
+          Hacspec_ml_dsa.Commute.Chunk.lemma_cross_idx 1 u 0;
+          FStar.Math.Lemmas.small_mod (u + 1) 32;
+          // createi bridge (per-u, clean context): seed v(mk_usize _)==_ so the
+          // createi_lemma SMTPat (trigger Seq.index (createi f) (v i)) fires at the nat index.
+          assert (v (mk_usize u) == u);
+          assert (v (mk_usize (u+1)) == u+1);
+          assert (Seq.index orig u == (Seq.index orig_re u).f_values);
+          assert (Seq.index orig (u+1) == (Seq.index orig_re (u+1)).f_values);
+          assert (Seq.index fut u == (Seq.index re u).f_values);
+          assert (Seq.index fut (u+1) == (Seq.index re (u+1)).f_values);
+          lemma_atom_to_bf_cross (Seq.index orig u) (Seq.index orig (u+1))
+                                 (Seq.index fut u) (Seq.index fut (u+1)) (zm u)
+        end
+     in Classical.forall_intro aux_bf);
+    (let aux_z (u: nat{u < 32}) : Lemma
+       ((u % 2 == 0) ==>
+        (v (zm u)) % 8380417 ==
+        (v (Hacspec_ml_dsa.Ntt.v_ZETAS.[ mk_usize (u / 2 + 16) ] <: i32) * pow2 32) % 8380417)
+      = if (u % 2 = 0) then begin
+          reveal_opaque (`%Spec.MLDSA.Math.mod_q) (Spec.MLDSA.Math.mod_q);
+          let _ = Spec.MLDSA.Ntt.zeta_r (u / 2 + 16) in
+          Hacspec_ml_dsa.Commute.Chunk.lemma_v_zetas_eq_zeta (u / 2 + 16)
+        end
+     in Classical.forall_intro aux_z);
+    Hacspec_ml_dsa.Commute.Chunk.lemma_ntt_layer_3_cross_to_hacspec_poly orig fut t zm
+#pop-options
+"#)]
 #[hax_lib::fstar::before(
     r#"
 let simd_layer_factor (step:usize) =
@@ -959,9 +1116,15 @@ lemma_l2_driver_compose (chunks_of_re ${orig_re}) (chunks_of_re ${re})
 #[hax_lib::ensures(|_| fstar!(r#"
     Spec.Utils.modifies_range_32 ${re} ${re}_future $OFFSET (${OFFSET + STEP_BY + STEP_BY}) /\
     (Spec.Utils.forall32 (fun i -> (i >= v $OFFSET /\ i < (v $OFFSET + 2 * v $STEP_BY)) ==>
-              Spec.Utils.is_i32b_array_opaque 
-                (v $NTT_BASE_BOUND + ((layer_bound_factor $STEP_BY + 1) * v $FIELD_MAX)) 
-                (Seq.index ${re}_future i).f_values))
+              Spec.Utils.is_i32b_array_opaque
+                (v $NTT_BASE_BOUND + ((layer_bound_factor $STEP_BY + 1) * v $FIELD_MAX))
+                (Seq.index ${re}_future i).f_values)) /\
+    (Spec.Utils.forall32 (fun u -> (u >= v $OFFSET /\ u < v $OFFSET + v $STEP_BY) ==>
+              unit_fe_post_cross (Seq.index ${re} u).f_values
+                                 (Seq.index ${re} (u + v $STEP_BY)).f_values
+                                 (Seq.index ${re}_future u).f_values
+                                 (Seq.index ${re}_future (u + v $STEP_BY)).f_values
+                                 $ZETA))
 "#))]
 fn outer_3_plus<const OFFSET: usize, const STEP_BY: usize, const ZETA: i32>(
     re: &mut [Coefficients; SIMD_UNITS_IN_RING_ELEMENT],
@@ -996,12 +1159,17 @@ fn outer_3_plus<const OFFSET: usize, const STEP_BY: usize, const ZETA: i32>(
     "#))]
     #[hax_lib::ensures(|_| fstar!(r#"
         Spec.Utils.modifies2_32 ${re} ${re}_future $index (${index + step_by}) /\
-        Spec.Utils.is_i32b_array_opaque 
-                    (v $NTT_BASE_BOUND + ((layer_bound_factor $step_by + 1) * v $FIELD_MAX)) 
+        Spec.Utils.is_i32b_array_opaque
+                    (v $NTT_BASE_BOUND + ((layer_bound_factor $step_by + 1) * v $FIELD_MAX))
                     (Seq.index ${re}_future (v $index)).f_values /\
-        Spec.Utils.is_i32b_array_opaque 
-                    (v $NTT_BASE_BOUND + ((layer_bound_factor $step_by + 1) * v $FIELD_MAX)) 
-                    (Seq.index ${re}_future (v $index + v step_by)).f_values
+        Spec.Utils.is_i32b_array_opaque
+                    (v $NTT_BASE_BOUND + ((layer_bound_factor $step_by + 1) * v $FIELD_MAX))
+                    (Seq.index ${re}_future (v $index + v step_by)).f_values /\
+        unit_fe_post_cross (Seq.index ${re} (v $index)).f_values
+                           (Seq.index ${re} (v $index + v $step_by)).f_values
+                           (Seq.index ${re}_future (v $index)).f_values
+                           (Seq.index ${re}_future (v $index + v $step_by)).f_values
+                           $zeta
     "#))]
     fn round(
         re: &mut [Coefficients; SIMD_UNITS_IN_RING_ELEMENT],
@@ -1012,6 +1180,8 @@ fn outer_3_plus<const OFFSET: usize, const STEP_BY: usize, const ZETA: i32>(
         hax_lib::fstar!(
             "reveal_opaque (`%Spec.Utils.is_i32b_array_opaque) (Spec.Utils.is_i32b_array_opaque)"
         );
+        #[cfg(hax)]
+        let re_in = re.clone();
         let mut tmp = re[index + step_by];
         montgomery_multiply_by_constant(&mut tmp, zeta);
 
@@ -1019,6 +1189,18 @@ fn outer_3_plus<const OFFSET: usize, const STEP_BY: usize, const ZETA: i32>(
 
         arithmetic::subtract(&mut re[index + step_by], &tmp);
         arithmetic::add(&mut re[index], &tmp);
+        // Discharge the cross-unit FE atom via the clean bridge lemma: ci_lo/ci_hi
+        // = re_in[index]/[index+step_by]; co_lo/co_hi = re[index]/[index+step_by];
+        // tmp = mmbc(ci_hi, zeta).  add/sub posts + mmbc post satisfy its requires.
+        hax_lib::fstar!(
+            r#"lemma_round_cross_intro
+                 (Seq.index $re_in (v $index)).f_values
+                 (Seq.index $re_in (v $index + v $step_by)).f_values
+                 (Seq.index ${re} (v $index)).f_values
+                 (Seq.index ${re} (v $index + v $step_by)).f_values
+                 ${tmp}.f_values
+                 $zeta"#
+        );
     }
 
     #[cfg(hax)]
@@ -1027,13 +1209,19 @@ fn outer_3_plus<const OFFSET: usize, const STEP_BY: usize, const ZETA: i32>(
     for j in OFFSET..OFFSET + STEP_BY {
         hax_lib::loop_invariant!(|j: usize| fstar!(
             r#"
-            (Spec.Utils.modifies_range2_32 $orig_re $re 
+            (Spec.Utils.modifies_range2_32 $orig_re $re
                 $OFFSET $j ($OFFSET +! $STEP_BY) ($j +! $STEP_BY)) /\
-            (Spec.Utils.forall32 (fun i -> ((i >= v $OFFSET /\ i < v $j) \/ 
+            (Spec.Utils.forall32 (fun i -> ((i >= v $OFFSET /\ i < v $j) \/
                         (i >= v $OFFSET + v $STEP_BY /\ i < v $j + v $STEP_BY)) ==>
-                Spec.Utils.is_i32b_array_opaque 
-                    (v $NTT_BASE_BOUND + ((layer_bound_factor $STEP_BY + 1) * v $FIELD_MAX)) 
-                    (Seq.index ${re} i).f_values))
+                Spec.Utils.is_i32b_array_opaque
+                    (v $NTT_BASE_BOUND + ((layer_bound_factor $STEP_BY + 1) * v $FIELD_MAX))
+                    (Seq.index ${re} i).f_values)) /\
+            (Spec.Utils.forall32 (fun u -> (u >= v $OFFSET /\ u < v $j) ==>
+                unit_fe_post_cross (Seq.index $orig_re u).f_values
+                                   (Seq.index $orig_re (u + v $STEP_BY)).f_values
+                                   (Seq.index ${re} u).f_values
+                                   (Seq.index ${re} (u + v $STEP_BY)).f_values
+                                   $ZETA))
         "#
         ));
         round(re, j, STEP_BY, ZETA);
@@ -1047,11 +1235,19 @@ fn outer_3_plus<const OFFSET: usize, const STEP_BY: usize, const ZETA: i32>(
     is_i32b_polynomial (v $NTT_BASE_BOUND + 4 * v $FIELD_MAX) ${re}
 "#))]
 #[hax_lib::ensures(|_| fstar!(r#"
-    is_i32b_polynomial (v $NTT_BASE_BOUND + 5 * v $FIELD_MAX) ${re}_future
+    is_i32b_polynomial (v $NTT_BASE_BOUND + 5 * v $FIELD_MAX) ${re}_future /\
+    (let in_flat = Hacspec_ml_dsa.Commute.Chunk.simd_units_to_array (chunks_of_re ${re}) in
+     let out_flat = Hacspec_ml_dsa.Commute.Chunk.simd_units_to_array (chunks_of_re ${re}_future) in
+     let spec = Hacspec_ml_dsa.Ntt.ntt_layer in_flat (mk_usize 3) in
+     forall (i: nat). i < 256 ==>
+       (v (Seq.index out_flat i)) % 8380417 == (v (Seq.index spec i)) % 8380417)
 "#) )]
 fn ntt_at_layer_3(re: &mut [Coefficients; SIMD_UNITS_IN_RING_ELEMENT]) {
     const STEP: usize = 8; // 1 << LAYER;
     const STEP_BY: usize = 1; // step / COEFFICIENTS_IN_SIMD_UNIT;
+
+    #[cfg(hax)]
+    let orig_re = re.clone();
 
     outer_3_plus::<{ (0 * STEP * 2) / COEFFICIENTS_IN_SIMD_UNIT }, STEP_BY, 2725464>(re);
     outer_3_plus::<{ (1 * STEP * 2) / COEFFICIENTS_IN_SIMD_UNIT }, STEP_BY, 1024112>(re);
@@ -1069,6 +1265,46 @@ fn ntt_at_layer_3(re: &mut [Coefficients; SIMD_UNITS_IN_RING_ELEMENT]) {
     outer_3_plus::<{ (13 * STEP * 2) / COEFFICIENTS_IN_SIMD_UNIT }, STEP_BY, -19422>(re);
     outer_3_plus::<{ (14 * STEP * 2) / COEFFICIENTS_IN_SIMD_UNIT }, STEP_BY, 4010497>(re);
     outer_3_plus::<{ (15 * STEP * 2) / COEFFICIENTS_IN_SIMD_UNIT }, STEP_BY, 280005>(re);
+
+    hax_lib::fstar!(r#"
+assert_norm (Spec.MLDSA.Ntt.zeta_r 16 == 2725464);
+assert_norm (Spec.MLDSA.Ntt.zeta_r 17 == 1024112);
+assert_norm (Spec.MLDSA.Ntt.zeta_r 18 == (-1079900));
+assert_norm (Spec.MLDSA.Ntt.zeta_r 19 == 3585928);
+assert_norm (Spec.MLDSA.Ntt.zeta_r 20 == (-549488));
+assert_norm (Spec.MLDSA.Ntt.zeta_r 21 == (-1119584));
+assert_norm (Spec.MLDSA.Ntt.zeta_r 22 == 2619752);
+assert_norm (Spec.MLDSA.Ntt.zeta_r 23 == (-2108549));
+assert_norm (Spec.MLDSA.Ntt.zeta_r 24 == (-2118186));
+assert_norm (Spec.MLDSA.Ntt.zeta_r 25 == (-3859737));
+assert_norm (Spec.MLDSA.Ntt.zeta_r 26 == (-1399561));
+assert_norm (Spec.MLDSA.Ntt.zeta_r 27 == (-3277672));
+assert_norm (Spec.MLDSA.Ntt.zeta_r 28 == 1757237);
+assert_norm (Spec.MLDSA.Ntt.zeta_r 29 == (-19422));
+assert_norm (Spec.MLDSA.Ntt.zeta_r 30 == 4010497);
+assert_norm (Spec.MLDSA.Ntt.zeta_r 31 == 280005);
+// Flat-asserts: discharge each even-u cross atom (orig_re vs final re) in
+// ISOLATION (one frame each, ~rlimit 11) so the compose lemma's forall32
+// precondition is assembled from 16 ground facts instead of a
+// forall32-of-forall32 e-matching cascade (mirrors the A3 flat composition).
+assert (unit_fe_post_cross (Seq.index ${orig_re} 0).f_values (Seq.index ${orig_re} 1).f_values (Seq.index ${re} 0).f_values (Seq.index ${re} 1).f_values (mk_i32 (Spec.MLDSA.Ntt.zeta_r (0 / 2 + 16))));
+assert (unit_fe_post_cross (Seq.index ${orig_re} 2).f_values (Seq.index ${orig_re} 3).f_values (Seq.index ${re} 2).f_values (Seq.index ${re} 3).f_values (mk_i32 (Spec.MLDSA.Ntt.zeta_r (2 / 2 + 16))));
+assert (unit_fe_post_cross (Seq.index ${orig_re} 4).f_values (Seq.index ${orig_re} 5).f_values (Seq.index ${re} 4).f_values (Seq.index ${re} 5).f_values (mk_i32 (Spec.MLDSA.Ntt.zeta_r (4 / 2 + 16))));
+assert (unit_fe_post_cross (Seq.index ${orig_re} 6).f_values (Seq.index ${orig_re} 7).f_values (Seq.index ${re} 6).f_values (Seq.index ${re} 7).f_values (mk_i32 (Spec.MLDSA.Ntt.zeta_r (6 / 2 + 16))));
+assert (unit_fe_post_cross (Seq.index ${orig_re} 8).f_values (Seq.index ${orig_re} 9).f_values (Seq.index ${re} 8).f_values (Seq.index ${re} 9).f_values (mk_i32 (Spec.MLDSA.Ntt.zeta_r (8 / 2 + 16))));
+assert (unit_fe_post_cross (Seq.index ${orig_re} 10).f_values (Seq.index ${orig_re} 11).f_values (Seq.index ${re} 10).f_values (Seq.index ${re} 11).f_values (mk_i32 (Spec.MLDSA.Ntt.zeta_r (10 / 2 + 16))));
+assert (unit_fe_post_cross (Seq.index ${orig_re} 12).f_values (Seq.index ${orig_re} 13).f_values (Seq.index ${re} 12).f_values (Seq.index ${re} 13).f_values (mk_i32 (Spec.MLDSA.Ntt.zeta_r (12 / 2 + 16))));
+assert (unit_fe_post_cross (Seq.index ${orig_re} 14).f_values (Seq.index ${orig_re} 15).f_values (Seq.index ${re} 14).f_values (Seq.index ${re} 15).f_values (mk_i32 (Spec.MLDSA.Ntt.zeta_r (14 / 2 + 16))));
+assert (unit_fe_post_cross (Seq.index ${orig_re} 16).f_values (Seq.index ${orig_re} 17).f_values (Seq.index ${re} 16).f_values (Seq.index ${re} 17).f_values (mk_i32 (Spec.MLDSA.Ntt.zeta_r (16 / 2 + 16))));
+assert (unit_fe_post_cross (Seq.index ${orig_re} 18).f_values (Seq.index ${orig_re} 19).f_values (Seq.index ${re} 18).f_values (Seq.index ${re} 19).f_values (mk_i32 (Spec.MLDSA.Ntt.zeta_r (18 / 2 + 16))));
+assert (unit_fe_post_cross (Seq.index ${orig_re} 20).f_values (Seq.index ${orig_re} 21).f_values (Seq.index ${re} 20).f_values (Seq.index ${re} 21).f_values (mk_i32 (Spec.MLDSA.Ntt.zeta_r (20 / 2 + 16))));
+assert (unit_fe_post_cross (Seq.index ${orig_re} 22).f_values (Seq.index ${orig_re} 23).f_values (Seq.index ${re} 22).f_values (Seq.index ${re} 23).f_values (mk_i32 (Spec.MLDSA.Ntt.zeta_r (22 / 2 + 16))));
+assert (unit_fe_post_cross (Seq.index ${orig_re} 24).f_values (Seq.index ${orig_re} 25).f_values (Seq.index ${re} 24).f_values (Seq.index ${re} 25).f_values (mk_i32 (Spec.MLDSA.Ntt.zeta_r (24 / 2 + 16))));
+assert (unit_fe_post_cross (Seq.index ${orig_re} 26).f_values (Seq.index ${orig_re} 27).f_values (Seq.index ${re} 26).f_values (Seq.index ${re} 27).f_values (mk_i32 (Spec.MLDSA.Ntt.zeta_r (26 / 2 + 16))));
+assert (unit_fe_post_cross (Seq.index ${orig_re} 28).f_values (Seq.index ${orig_re} 29).f_values (Seq.index ${re} 28).f_values (Seq.index ${re} 29).f_values (mk_i32 (Spec.MLDSA.Ntt.zeta_r (28 / 2 + 16))));
+assert (unit_fe_post_cross (Seq.index ${orig_re} 30).f_values (Seq.index ${orig_re} 31).f_values (Seq.index ${re} 30).f_values (Seq.index ${re} 31).f_values (mk_i32 (Spec.MLDSA.Ntt.zeta_r (30 / 2 + 16))));
+lemma_l3_cross_driver_compose ${orig_re} ${re}
+"#);
 }
 
 #[inline(always)]
