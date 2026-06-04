@@ -97,7 +97,23 @@ per-chunk dispatcher + all-32-chunk poly composition each.
   `zeta` once via the SAME table bridge — pushing the 224-arm bridge into ONE
   reusable lemma proven by `introduce forall + match` (still 256 arms but
   written once, not per-driver). Decide bridge-home before starting A3.
-- A3a TABLE-BRIDGE DIAGNOSIS (2026-06-04, Option 1 chosen):
+- **A3a DONE (2026-06-04): `lemma_v_zetas_eq_zeta` PROVEN admit-free in
+  Commute.Chunk.fst.** `(i:nat{1<=i<256}) : v (v_ZETAS.[mk_usize i]) ==
+  Spec.MLDSA.Ntt.zeta i`. Recipe that worked (validated in a 3-elt scratch
+  module first): verbatim 256-list copy `zetas_list_dsa` + `lemma_vzetas_unfold`
+  (`v_ZETAS == seq_of_list zetas_list_dsa` by tactic `norm [delta_only
+  [v_ZETAS; array_of_list]]; trefl` — pure defeq, 29ms, NO Seq normalize) +
+  explicit `FStar.Seq.Properties.lemma_seq_of_list_index` + 255-arm `match`
+  with per-arm `assert_norm (v (List.Tot.index zetas_list_dsa k) == zeta k)`.
+  Clean build (310s, exit 0): bridge = 1029 split sub-queries, max 2350ms; no
+  new admits (baseline 2). The 2 `layer_{1,2}_lane` q1 "failures" are the
+  benign monolithic-WF-cancel→auto-split-retry pattern (build exit 0).
+  Validated `lemma_seq_of_list_index` HAS an SMTPat but it only fires on a
+  SYNTACTIC `seq_of_list`; the tactic-unfold makes v_ZETAS syntactically that.
+  zetas_list_dsa extracted from the extracted v_ZETAS (script); verbatim → trefl
+  defeq holds. Reusable for layers 3-7 + final theorem (covers all idx 1..255).
+
+- A3a TABLE-BRIDGE DIAGNOSIS (2026-06-04, Option 1 chosen) [historical, now resolved above]:
   * `Hacspec_ml_dsa.Ntt.v_ZETAS = Rust_primitives.Hax.array_of_list 256 <list>`
     and `array_of_list` is `unfold = Seq.seq_of_list`. `assert_norm` on
     `Seq.index v_ZETAS idx == zeta idx` HANGS — Seq is abstract, the normalizer
