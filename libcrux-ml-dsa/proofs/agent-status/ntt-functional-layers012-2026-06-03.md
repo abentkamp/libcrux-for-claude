@@ -97,6 +97,52 @@ per-chunk dispatcher + all-32-chunk poly composition each.
   `zeta` once via the SAME table bridge — pushing the 224-arm bridge into ONE
   reusable lemma proven by `introduce forall + match` (still 256 arms but
   written once, not per-driver). Decide bridge-home before starting A3.
+- A3a TABLE-BRIDGE DIAGNOSIS (2026-06-04, Option 1 chosen):
+  * `Hacspec_ml_dsa.Ntt.v_ZETAS = Rust_primitives.Hax.array_of_list 256 <list>`
+    and `array_of_list` is `unfold = Seq.seq_of_list`. `assert_norm` on
+    `Seq.index v_ZETAS idx == zeta idx` HANGS — Seq is abstract, the normalizer
+    can't reduce `Seq.index (seq_of_list ..)`, so it hands a giant term to Z3
+    and the query orphans (blocked the session; had to kill curls + reopen).
+    DO NOT assert_norm through Seq.index of v_ZETAS.
+  * ml-kem has NO analogous bridge because its impl reads `Polynomial.zeta i`
+    (a fn) and its spec reads the `zetas` table with zeta passed as a PARAMETER
+    through the butterfly lemmas (Hacspec_ml_kem.Commute.Chunk.lemma_mont_zeta_cancel
+    + lemma_butterfly_fe_commute_*). ML-DSA's impl hardcodes inline literal
+    constants (round(re,0,2091667,...)), so the v_ZETAS<->zeta table bridge is
+    unavoidable and is the gating piece for ALL driver wiring.
+  * REFINED OBSTACLE (2026-06-04, two probe hangs): `stdlib
+    FStar.Seq.Properties.lemma_seq_of_list_index` HAS an SMTPat
+    `[SMTPat (index (seq_of_list l) i)]`, BUT it only fires when the term is
+    SYNTACTICALLY `Seq.index (seq_of_list <list>) i`. `v_ZETAS` is a plain `let`
+    (NOT `unfold`/`inline_for_extraction`), so F* does NOT auto-unfold it to
+    `seq_of_list ...`; the SMTPat never fires and Z3 churns/hangs. Confirmed
+    with a self-contained 3-element `array_of_list` probe — it ALSO hung,
+    isolating the cause to the non-unfold (not the 256 size). `assert_norm`
+    through `Seq.index` hangs independently (Seq abstract). So BOTH naive routes
+    hang.
+  * CORRECTED RECIPE (next session, test 2-3 arms FIRST): the lemma body must
+    UNFOLD v_ZETAS to expose `seq_of_list`. Per concrete-arm k:
+      `assert (v (v_ZETAS.[mk_usize k]) == zeta k)
+         by (T.norm [delta_only [`%Hacspec_ml_dsa.Ntt.v_ZETAS;
+                                 `%Rust_primitives.Hax.array_of_list]];
+             // now goal mentions Seq.index (seq_of_list <256list>) k → SMTPat fires
+             // List.Tot.index <256list> k must then reduce: add iota/primops/zeta
+             T.norm [primops; iota; zeta; delta]; T.trefl ())`
+    OR copy the 256-elt list as `zetas_list_dsa`, prove `v_ZETAS ==
+    array_of_list 256 zetas_list_dsa` by `_ by (T.trefl())` (defeq, list copied
+    verbatim — NO Seq normalize), then `Seq.lemma_seq_of_list_index
+    zetas_list_dsa k` + `assert_norm (v (List.Tot.index zetas_list_dsa k) ==
+    zeta k)`. Either way: 255-arm `match` (~500 lines), ONE-TIME, reusable.
+    MUST validate the per-arm tactic on 2-3 arms in a session before scaling —
+    each wrong turn hangs the solver for minutes + orphans the session.
+    Bound [32,255] suffices for layers 0-2 (idx 32..255).
+  * ITERATE CHEAPLY next time: do NOT probe inside Commute.Chunk.fst — its
+    1650-line prelude lax-checks slowly and a wrong tactic hangs the whole
+    session + orphans curls. Instead make a tiny scratch module
+    (e.g. `Ztest.fst` importing only `Hacspec_ml_dsa.Ntt` + `Spec.MLDSA.Ntt`)
+    with just `_probe_arr`/`_probe_recipe`, open it fresh, and lax+verify in
+    seconds. Validate the per-arm tactic there, THEN port to Commute.Chunk and
+    scale to 255 arms.
 - GOOD NEWS on composition: the 32-round functional WP should be NO harder than
   the bounds forall32 — the snapshot-equality fact `re_before_b[b]==orig[b]` is
   ALREADY discharged by F* to type the bounds round-call preconditions; the FE
