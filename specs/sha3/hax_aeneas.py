@@ -7,8 +7,8 @@ from pathlib import Path
 
 import os
 
-HAX_VERSION = "7b4bd97058e0fcbf9135b76297ca91942f2327a6"
-AENEAS_VERSION = "b5c45e84"
+HAX_VERSION = "02e8abd8611a8e21c643d6d98a20c0adbb5a4891"
+AENEAS_VERSION = "unknown"
 
 
 def check_version(cmd: list[str], name: str, expected: str) -> None:
