@@ -44,6 +44,11 @@ for line in result.stderr.splitlines():
 if result.returncode != 0:
     sys.exit(result.returncode)
 
+# Remove the FunsExternal template emitted by aeneas; the real
+# FunsExternal.lean is checked into the repo.
+template = Path("proofs/aeneas-lean/HacspecSha3/Extraction/FunsExternal_Template.lean")
+template.unlink(missing_ok=True)
+
 funs_lean = Path("proofs/aeneas-lean/HacspecSha3/Extraction/Funs.lean")
 content = funs_lean.read_text()
 
