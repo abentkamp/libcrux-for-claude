@@ -1,20 +1,20 @@
- module Spec.MLDSA.Ntt
+ module Spec.MLDSA.NttConstants
  (*
-   ⚠️  DELETION-PENDING (scheduled for Phase 4 of the ML-DSA proof sprint).
+   Permanent home for the ML-DSA NTT constant tables, re-homed out of the
+   (now-deletable) Spec.MLDSA.Ntt in D1 (2026-06-06):
 
-   This module is the OBSOLETE hand-written tier of the ML-DSA spec
-   hierarchy.  The CANONICAL NTT spec is in
-   `specs/ml-dsa/proofs/fstar/extraction/Hacspec_ml_dsa.Ntt.fst`,
-   which contains the authoritative `ntt`, `intt`, `ntt_layer`, and
-   `intt_layer` definitions.
+   - `zeta`   : the raw zeta_i table (0..255), values in [0, q).
+   - `zeta_r` : the Montgomery-domain / centered zeta the implementation uses as
+                round constants; carries the bridge ensures
+                `mod_q result == mod_q (zeta i * pow2 32)`.
 
-   DO NOT add new citations to anything in this module.  Existing
-   citations (currently from AVX2 NTT proofs) are scheduled to migrate
-   to `Hacspec_ml_dsa.Ntt` in Phase 4A, and then this file is deleted
-   in Phase 4B.
+   Also holds `ntt_step`/`inv_ntt_step` — the per-step butterfly spec the AVX2
+   NTT proofs still cite (pending their migration to the canonical `ntt_layer`,
+   the way the Portable backend already was).
 
-   See `libcrux-ml-dsa/proofs/sprint-plan.md` for the migration plan
-   and `libcrux-ml-dsa/MLDSA_STATUS.md` for current status.
+   The CANONICAL NTT spec (ntt/intt/ntt_layer/intt_layer/v_ZETAS) lives in the
+   extracted `Hacspec_ml_dsa.Ntt`; these proof-only helpers cannot live there
+   (it is extracted from hacspec Rust), so they keep a hand-maintained home.
  *)
  open Core_models
  open FStar.Mul

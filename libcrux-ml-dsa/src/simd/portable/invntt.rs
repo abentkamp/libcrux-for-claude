@@ -90,10 +90,10 @@ fn simd_unit_inv_ntt_step(simd_unit: &mut Coefficients, zeta: i32, index: usize,
             (requires
               Spec.Utils.forall32 (fun b ->
                 unit_fe_post_inv_l0 (Seq.index orig b) (Seq.index fut b)
-                                (mk_i32 (Spec.MLDSA.Ntt.zeta_r (255 - (4*b + 0))))
-                                (mk_i32 (Spec.MLDSA.Ntt.zeta_r (255 - (4*b + 1))))
-                                (mk_i32 (Spec.MLDSA.Ntt.zeta_r (255 - (4*b + 2))))
-                                (mk_i32 (Spec.MLDSA.Ntt.zeta_r (255 - (4*b + 3))))))
+                                (mk_i32 (Spec.MLDSA.NttConstants.zeta_r (255 - (4*b + 0))))
+                                (mk_i32 (Spec.MLDSA.NttConstants.zeta_r (255 - (4*b + 1))))
+                                (mk_i32 (Spec.MLDSA.NttConstants.zeta_r (255 - (4*b + 2))))
+                                (mk_i32 (Spec.MLDSA.NttConstants.zeta_r (255 - (4*b + 3))))))
             (ensures
               (let in_flat = Hacspec_ml_dsa.Commute.Chunk.simd_units_to_array orig in
                let out_flat = Hacspec_ml_dsa.Commute.Chunk.simd_units_to_array fut in
@@ -101,12 +101,12 @@ fn simd_unit_inv_ntt_step(simd_unit: &mut Coefficients, zeta: i32, index: usize,
                forall (i: nat). i < 256 ==>
                  (v (Seq.index out_flat i)) % 8380417 == (v (Seq.index spec i)) % 8380417))
       = let zm (b: nat{b < 32}) (p: nat{p < 4}) : (z: i32{Spec.Utils.is_i32b 4190208 z}) =
-          mk_i32 (Spec.MLDSA.Ntt.zeta_r (255 - (4*b + p))) in
+          mk_i32 (Spec.MLDSA.NttConstants.zeta_r (255 - (4*b + p))) in
         Libcrux_ml_dsa.Simd.Portable.Ntt.forall32_elim_1d (fun b -> unit_fe_post_inv_l0 (Seq.index orig b) (Seq.index fut b)
-                                     (mk_i32 (Spec.MLDSA.Ntt.zeta_r (255 - (4*b + 0))))
-                                     (mk_i32 (Spec.MLDSA.Ntt.zeta_r (255 - (4*b + 1))))
-                                     (mk_i32 (Spec.MLDSA.Ntt.zeta_r (255 - (4*b + 2))))
-                                     (mk_i32 (Spec.MLDSA.Ntt.zeta_r (255 - (4*b + 3)))));
+                                     (mk_i32 (Spec.MLDSA.NttConstants.zeta_r (255 - (4*b + 0))))
+                                     (mk_i32 (Spec.MLDSA.NttConstants.zeta_r (255 - (4*b + 1))))
+                                     (mk_i32 (Spec.MLDSA.NttConstants.zeta_r (255 - (4*b + 2))))
+                                     (mk_i32 (Spec.MLDSA.NttConstants.zeta_r (255 - (4*b + 3)))));
         (let aux (b: nat{b < 32}) (p: nat{p < 4}) : Lemma
            (let ci = Seq.index orig b in
             let co = Seq.index fut b in
@@ -117,7 +117,7 @@ fn simd_unit_inv_ntt_step(simd_unit: &mut Coefficients, zeta: i32, index: usize,
               (v (Hacspec_ml_dsa.Ntt.v_ZETAS.[ mk_usize (255 - (4*b + p)) ] <: i32) * pow2 32) % 8380417)
           = lemma_atom_to_bf_inv_l0 (Seq.index orig b) (Seq.index fut b) (fun p -> zm b p);
             reveal_opaque (`%Spec.MLDSA.Math.mod_q) (Spec.MLDSA.Math.mod_q);
-            let _ = Spec.MLDSA.Ntt.zeta_r (255 - (4*b + p)) in
+            let _ = Spec.MLDSA.NttConstants.zeta_r (255 - (4*b + p)) in
             Hacspec_ml_dsa.Commute.Chunk.lemma_v_zetas_eq_zeta (255 - (4*b + p))
          in Classical.forall_intro_2 aux);
         Hacspec_ml_dsa.Commute.Chunk.lemma_intt_layer_0_step_to_hacspec_poly orig fut zm
@@ -199,8 +199,8 @@ pub fn simd_unit_invert_ntt_at_layer_0(
             (requires
               Spec.Utils.forall32 (fun b ->
                 unit_fe_post_inv_l1 (Seq.index orig b) (Seq.index fut b)
-                                (mk_i32 (Spec.MLDSA.Ntt.zeta_r (127 - (2*b + 0))))
-                                (mk_i32 (Spec.MLDSA.Ntt.zeta_r (127 - (2*b + 1))))))
+                                (mk_i32 (Spec.MLDSA.NttConstants.zeta_r (127 - (2*b + 0))))
+                                (mk_i32 (Spec.MLDSA.NttConstants.zeta_r (127 - (2*b + 1))))))
             (ensures
               (let in_flat = Hacspec_ml_dsa.Commute.Chunk.simd_units_to_array orig in
                let out_flat = Hacspec_ml_dsa.Commute.Chunk.simd_units_to_array fut in
@@ -208,10 +208,10 @@ pub fn simd_unit_invert_ntt_at_layer_0(
                forall (i: nat). i < 256 ==>
                  (v (Seq.index out_flat i)) % 8380417 == (v (Seq.index spec i)) % 8380417))
       = let zm (b: nat{b < 32}) (h: nat{h < 2}) : (z: i32{Spec.Utils.is_i32b 4190208 z}) =
-          mk_i32 (Spec.MLDSA.Ntt.zeta_r (127 - (2*b + h))) in
+          mk_i32 (Spec.MLDSA.NttConstants.zeta_r (127 - (2*b + h))) in
         Libcrux_ml_dsa.Simd.Portable.Ntt.forall32_elim_1d (fun b -> unit_fe_post_inv_l1 (Seq.index orig b) (Seq.index fut b)
-                                     (mk_i32 (Spec.MLDSA.Ntt.zeta_r (127 - (2*b + 0))))
-                                     (mk_i32 (Spec.MLDSA.Ntt.zeta_r (127 - (2*b + 1)))));
+                                     (mk_i32 (Spec.MLDSA.NttConstants.zeta_r (127 - (2*b + 0))))
+                                     (mk_i32 (Spec.MLDSA.NttConstants.zeta_r (127 - (2*b + 1)))));
         (let aux_bf (b: nat{b < 32}) : Lemma
            (forall (h: nat{h < 2}) (j: nat{j < 2}).
              (let ci = Seq.index orig b in
@@ -225,7 +225,7 @@ pub fn simd_unit_invert_ntt_at_layer_0(
            ((v (zm b h)) % 8380417 ==
             (v (Hacspec_ml_dsa.Ntt.v_ZETAS.[ mk_usize (127 - (2*b + h)) ] <: i32) * pow2 32) % 8380417)
           = reveal_opaque (`%Spec.MLDSA.Math.mod_q) (Spec.MLDSA.Math.mod_q);
-            let _ = Spec.MLDSA.Ntt.zeta_r (127 - (2*b + h)) in
+            let _ = Spec.MLDSA.NttConstants.zeta_r (127 - (2*b + h)) in
             Hacspec_ml_dsa.Commute.Chunk.lemma_v_zetas_eq_zeta (127 - (2*b + h))
          in Classical.forall_intro_2 aux_z);
         Hacspec_ml_dsa.Commute.Chunk.lemma_intt_layer_1_step_to_hacspec_poly orig fut zm
@@ -299,7 +299,7 @@ pub fn simd_unit_invert_ntt_at_layer_1(simd_unit: &mut Coefficients, zeta0: i32,
             (requires
               Spec.Utils.forall32 (fun b ->
                 unit_fe_post_inv_l2 (Seq.index orig b) (Seq.index fut b)
-                                (mk_i32 (Spec.MLDSA.Ntt.zeta_r (63 - b)))))
+                                (mk_i32 (Spec.MLDSA.NttConstants.zeta_r (63 - b)))))
             (ensures
               (let in_flat = Hacspec_ml_dsa.Commute.Chunk.simd_units_to_array orig in
                let out_flat = Hacspec_ml_dsa.Commute.Chunk.simd_units_to_array fut in
@@ -307,9 +307,9 @@ pub fn simd_unit_invert_ntt_at_layer_1(simd_unit: &mut Coefficients, zeta0: i32,
                forall (i: nat). i < 256 ==>
                  (v (Seq.index out_flat i)) % 8380417 == (v (Seq.index spec i)) % 8380417))
       = let zm (b: nat{b < 32}) : (z: i32{Spec.Utils.is_i32b 4190208 z}) =
-          mk_i32 (Spec.MLDSA.Ntt.zeta_r (63 - b)) in
+          mk_i32 (Spec.MLDSA.NttConstants.zeta_r (63 - b)) in
         Libcrux_ml_dsa.Simd.Portable.Ntt.forall32_elim_1d (fun b -> unit_fe_post_inv_l2 (Seq.index orig b) (Seq.index fut b)
-                                     (mk_i32 (Spec.MLDSA.Ntt.zeta_r (63 - b))));
+                                     (mk_i32 (Spec.MLDSA.NttConstants.zeta_r (63 - b))));
         (let aux_bf (b: nat{b < 32}) : Lemma
            (forall (p: nat{p < 4}).
              (let ci = Seq.index orig b in
@@ -323,7 +323,7 @@ pub fn simd_unit_invert_ntt_at_layer_1(simd_unit: &mut Coefficients, zeta0: i32,
            ((v (zm b)) % 8380417 ==
             (v (Hacspec_ml_dsa.Ntt.v_ZETAS.[ mk_usize (63 - b) ] <: i32) * pow2 32) % 8380417)
           = reveal_opaque (`%Spec.MLDSA.Math.mod_q) (Spec.MLDSA.Math.mod_q);
-            let _ = Spec.MLDSA.Ntt.zeta_r (63 - b) in
+            let _ = Spec.MLDSA.NttConstants.zeta_r (63 - b) in
             Hacspec_ml_dsa.Commute.Chunk.lemma_v_zetas_eq_zeta (63 - b)
          in Classical.forall_intro aux_z);
         Hacspec_ml_dsa.Commute.Chunk.lemma_intt_layer_2_step_to_hacspec_poly orig fut zm
@@ -440,134 +440,134 @@ fn invert_ntt_at_layer_0(re: &mut [Coefficients; SIMD_UNITS_IN_RING_ELEMENT]) {
     round(re, 30, -3562462, -2446433, 2244091, -3342478);
     round(re, 31, 3817976, 2316500, 3407706, 2091667);
     hax_lib::fstar!(r#"
-assert_norm (Spec.MLDSA.Ntt.zeta_r 128 == 2091667);
-assert_norm (Spec.MLDSA.Ntt.zeta_r 129 == 3407706);
-assert_norm (Spec.MLDSA.Ntt.zeta_r 130 == 2316500);
-assert_norm (Spec.MLDSA.Ntt.zeta_r 131 == 3817976);
-assert_norm (Spec.MLDSA.Ntt.zeta_r 132 == (-3342478));
-assert_norm (Spec.MLDSA.Ntt.zeta_r 133 == 2244091);
-assert_norm (Spec.MLDSA.Ntt.zeta_r 134 == (-2446433));
-assert_norm (Spec.MLDSA.Ntt.zeta_r 135 == (-3562462));
-assert_norm (Spec.MLDSA.Ntt.zeta_r 136 == 266997);
-assert_norm (Spec.MLDSA.Ntt.zeta_r 137 == 2434439);
-assert_norm (Spec.MLDSA.Ntt.zeta_r 138 == (-1235728));
-assert_norm (Spec.MLDSA.Ntt.zeta_r 139 == 3513181);
-assert_norm (Spec.MLDSA.Ntt.zeta_r 140 == (-3520352));
-assert_norm (Spec.MLDSA.Ntt.zeta_r 141 == (-3759364));
-assert_norm (Spec.MLDSA.Ntt.zeta_r 142 == (-1197226));
-assert_norm (Spec.MLDSA.Ntt.zeta_r 143 == (-3193378));
-assert_norm (Spec.MLDSA.Ntt.zeta_r 144 == 900702);
-assert_norm (Spec.MLDSA.Ntt.zeta_r 145 == 1859098);
-assert_norm (Spec.MLDSA.Ntt.zeta_r 146 == 909542);
-assert_norm (Spec.MLDSA.Ntt.zeta_r 147 == 819034);
-assert_norm (Spec.MLDSA.Ntt.zeta_r 148 == 495491);
-assert_norm (Spec.MLDSA.Ntt.zeta_r 149 == (-1613174));
-assert_norm (Spec.MLDSA.Ntt.zeta_r 150 == (-43260));
-assert_norm (Spec.MLDSA.Ntt.zeta_r 151 == (-522500));
-assert_norm (Spec.MLDSA.Ntt.zeta_r 152 == (-655327));
-assert_norm (Spec.MLDSA.Ntt.zeta_r 153 == (-3122442));
-assert_norm (Spec.MLDSA.Ntt.zeta_r 154 == 2031748);
-assert_norm (Spec.MLDSA.Ntt.zeta_r 155 == 3207046);
-assert_norm (Spec.MLDSA.Ntt.zeta_r 156 == (-3556995));
-assert_norm (Spec.MLDSA.Ntt.zeta_r 157 == (-525098));
-assert_norm (Spec.MLDSA.Ntt.zeta_r 158 == (-768622));
-assert_norm (Spec.MLDSA.Ntt.zeta_r 159 == (-3595838));
-assert_norm (Spec.MLDSA.Ntt.zeta_r 160 == 342297);
-assert_norm (Spec.MLDSA.Ntt.zeta_r 161 == 286988);
-assert_norm (Spec.MLDSA.Ntt.zeta_r 162 == (-2437823));
-assert_norm (Spec.MLDSA.Ntt.zeta_r 163 == 4108315);
-assert_norm (Spec.MLDSA.Ntt.zeta_r 164 == 3437287);
-assert_norm (Spec.MLDSA.Ntt.zeta_r 165 == (-3342277));
-assert_norm (Spec.MLDSA.Ntt.zeta_r 166 == 1735879);
-assert_norm (Spec.MLDSA.Ntt.zeta_r 167 == 203044);
-assert_norm (Spec.MLDSA.Ntt.zeta_r 168 == 2842341);
-assert_norm (Spec.MLDSA.Ntt.zeta_r 169 == 2691481);
-assert_norm (Spec.MLDSA.Ntt.zeta_r 170 == (-2590150));
-assert_norm (Spec.MLDSA.Ntt.zeta_r 171 == 1265009);
-assert_norm (Spec.MLDSA.Ntt.zeta_r 172 == 4055324);
-assert_norm (Spec.MLDSA.Ntt.zeta_r 173 == 1247620);
-assert_norm (Spec.MLDSA.Ntt.zeta_r 174 == 2486353);
-assert_norm (Spec.MLDSA.Ntt.zeta_r 175 == 1595974);
-assert_norm (Spec.MLDSA.Ntt.zeta_r 176 == (-3767016));
-assert_norm (Spec.MLDSA.Ntt.zeta_r 177 == 1250494);
-assert_norm (Spec.MLDSA.Ntt.zeta_r 178 == 2635921);
-assert_norm (Spec.MLDSA.Ntt.zeta_r 179 == (-3548272));
-assert_norm (Spec.MLDSA.Ntt.zeta_r 180 == (-2994039));
-assert_norm (Spec.MLDSA.Ntt.zeta_r 181 == 1869119);
-assert_norm (Spec.MLDSA.Ntt.zeta_r 182 == 1903435);
-assert_norm (Spec.MLDSA.Ntt.zeta_r 183 == (-1050970));
-assert_norm (Spec.MLDSA.Ntt.zeta_r 184 == (-1333058));
-assert_norm (Spec.MLDSA.Ntt.zeta_r 185 == 1237275);
-assert_norm (Spec.MLDSA.Ntt.zeta_r 186 == (-3318210));
-assert_norm (Spec.MLDSA.Ntt.zeta_r 187 == (-1430225));
-assert_norm (Spec.MLDSA.Ntt.zeta_r 188 == (-451100));
-assert_norm (Spec.MLDSA.Ntt.zeta_r 189 == 1312455);
-assert_norm (Spec.MLDSA.Ntt.zeta_r 190 == 3306115);
-assert_norm (Spec.MLDSA.Ntt.zeta_r 191 == (-1962642));
-assert_norm (Spec.MLDSA.Ntt.zeta_r 192 == (-1279661));
-assert_norm (Spec.MLDSA.Ntt.zeta_r 193 == 1917081);
-assert_norm (Spec.MLDSA.Ntt.zeta_r 194 == (-2546312));
-assert_norm (Spec.MLDSA.Ntt.zeta_r 195 == (-1374803));
-assert_norm (Spec.MLDSA.Ntt.zeta_r 196 == 1500165);
-assert_norm (Spec.MLDSA.Ntt.zeta_r 197 == 777191);
-assert_norm (Spec.MLDSA.Ntt.zeta_r 198 == 2235880);
-assert_norm (Spec.MLDSA.Ntt.zeta_r 199 == 3406031);
-assert_norm (Spec.MLDSA.Ntt.zeta_r 200 == (-542412));
-assert_norm (Spec.MLDSA.Ntt.zeta_r 201 == (-2831860));
-assert_norm (Spec.MLDSA.Ntt.zeta_r 202 == (-1671176));
-assert_norm (Spec.MLDSA.Ntt.zeta_r 203 == (-1846953));
-assert_norm (Spec.MLDSA.Ntt.zeta_r 204 == (-2584293));
-assert_norm (Spec.MLDSA.Ntt.zeta_r 205 == (-3724270));
-assert_norm (Spec.MLDSA.Ntt.zeta_r 206 == 594136);
-assert_norm (Spec.MLDSA.Ntt.zeta_r 207 == (-3776993));
-assert_norm (Spec.MLDSA.Ntt.zeta_r 208 == (-2013608));
-assert_norm (Spec.MLDSA.Ntt.zeta_r 209 == 2432395);
-assert_norm (Spec.MLDSA.Ntt.zeta_r 210 == 2454455);
-assert_norm (Spec.MLDSA.Ntt.zeta_r 211 == (-164721));
-assert_norm (Spec.MLDSA.Ntt.zeta_r 212 == 1957272);
-assert_norm (Spec.MLDSA.Ntt.zeta_r 213 == 3369112);
-assert_norm (Spec.MLDSA.Ntt.zeta_r 214 == 185531);
-assert_norm (Spec.MLDSA.Ntt.zeta_r 215 == (-1207385));
-assert_norm (Spec.MLDSA.Ntt.zeta_r 216 == (-3183426));
-assert_norm (Spec.MLDSA.Ntt.zeta_r 217 == 162844);
-assert_norm (Spec.MLDSA.Ntt.zeta_r 218 == 1616392);
-assert_norm (Spec.MLDSA.Ntt.zeta_r 219 == 3014001);
-assert_norm (Spec.MLDSA.Ntt.zeta_r 220 == 810149);
-assert_norm (Spec.MLDSA.Ntt.zeta_r 221 == 1652634);
-assert_norm (Spec.MLDSA.Ntt.zeta_r 222 == (-3694233));
-assert_norm (Spec.MLDSA.Ntt.zeta_r 223 == (-1799107));
-assert_norm (Spec.MLDSA.Ntt.zeta_r 224 == (-3038916));
-assert_norm (Spec.MLDSA.Ntt.zeta_r 225 == 3523897);
-assert_norm (Spec.MLDSA.Ntt.zeta_r 226 == 3866901);
-assert_norm (Spec.MLDSA.Ntt.zeta_r 227 == 269760);
-assert_norm (Spec.MLDSA.Ntt.zeta_r 228 == 2213111);
-assert_norm (Spec.MLDSA.Ntt.zeta_r 229 == (-975884));
-assert_norm (Spec.MLDSA.Ntt.zeta_r 230 == 1717735);
-assert_norm (Spec.MLDSA.Ntt.zeta_r 231 == 472078);
-assert_norm (Spec.MLDSA.Ntt.zeta_r 232 == (-426683));
-assert_norm (Spec.MLDSA.Ntt.zeta_r 233 == 1723600);
-assert_norm (Spec.MLDSA.Ntt.zeta_r 234 == (-1803090));
-assert_norm (Spec.MLDSA.Ntt.zeta_r 235 == 1910376);
-assert_norm (Spec.MLDSA.Ntt.zeta_r 236 == (-1667432));
-assert_norm (Spec.MLDSA.Ntt.zeta_r 237 == (-1104333));
-assert_norm (Spec.MLDSA.Ntt.zeta_r 238 == (-260646));
-assert_norm (Spec.MLDSA.Ntt.zeta_r 239 == (-3833893));
-assert_norm (Spec.MLDSA.Ntt.zeta_r 240 == (-2939036));
-assert_norm (Spec.MLDSA.Ntt.zeta_r 241 == (-2235985));
-assert_norm (Spec.MLDSA.Ntt.zeta_r 242 == (-420899));
-assert_norm (Spec.MLDSA.Ntt.zeta_r 243 == (-2286327));
-assert_norm (Spec.MLDSA.Ntt.zeta_r 244 == 183443);
-assert_norm (Spec.MLDSA.Ntt.zeta_r 245 == (-976891));
-assert_norm (Spec.MLDSA.Ntt.zeta_r 246 == 1612842);
-assert_norm (Spec.MLDSA.Ntt.zeta_r 247 == (-3545687));
-assert_norm (Spec.MLDSA.Ntt.zeta_r 248 == (-554416));
-assert_norm (Spec.MLDSA.Ntt.zeta_r 249 == 3919660);
-assert_norm (Spec.MLDSA.Ntt.zeta_r 250 == (-48306));
-assert_norm (Spec.MLDSA.Ntt.zeta_r 251 == (-1362209));
-assert_norm (Spec.MLDSA.Ntt.zeta_r 252 == 3937738);
-assert_norm (Spec.MLDSA.Ntt.zeta_r 253 == 1400424);
-assert_norm (Spec.MLDSA.Ntt.zeta_r 254 == (-846154));
-assert_norm (Spec.MLDSA.Ntt.zeta_r 255 == 1976782);
+assert_norm (Spec.MLDSA.NttConstants.zeta_r 128 == 2091667);
+assert_norm (Spec.MLDSA.NttConstants.zeta_r 129 == 3407706);
+assert_norm (Spec.MLDSA.NttConstants.zeta_r 130 == 2316500);
+assert_norm (Spec.MLDSA.NttConstants.zeta_r 131 == 3817976);
+assert_norm (Spec.MLDSA.NttConstants.zeta_r 132 == (-3342478));
+assert_norm (Spec.MLDSA.NttConstants.zeta_r 133 == 2244091);
+assert_norm (Spec.MLDSA.NttConstants.zeta_r 134 == (-2446433));
+assert_norm (Spec.MLDSA.NttConstants.zeta_r 135 == (-3562462));
+assert_norm (Spec.MLDSA.NttConstants.zeta_r 136 == 266997);
+assert_norm (Spec.MLDSA.NttConstants.zeta_r 137 == 2434439);
+assert_norm (Spec.MLDSA.NttConstants.zeta_r 138 == (-1235728));
+assert_norm (Spec.MLDSA.NttConstants.zeta_r 139 == 3513181);
+assert_norm (Spec.MLDSA.NttConstants.zeta_r 140 == (-3520352));
+assert_norm (Spec.MLDSA.NttConstants.zeta_r 141 == (-3759364));
+assert_norm (Spec.MLDSA.NttConstants.zeta_r 142 == (-1197226));
+assert_norm (Spec.MLDSA.NttConstants.zeta_r 143 == (-3193378));
+assert_norm (Spec.MLDSA.NttConstants.zeta_r 144 == 900702);
+assert_norm (Spec.MLDSA.NttConstants.zeta_r 145 == 1859098);
+assert_norm (Spec.MLDSA.NttConstants.zeta_r 146 == 909542);
+assert_norm (Spec.MLDSA.NttConstants.zeta_r 147 == 819034);
+assert_norm (Spec.MLDSA.NttConstants.zeta_r 148 == 495491);
+assert_norm (Spec.MLDSA.NttConstants.zeta_r 149 == (-1613174));
+assert_norm (Spec.MLDSA.NttConstants.zeta_r 150 == (-43260));
+assert_norm (Spec.MLDSA.NttConstants.zeta_r 151 == (-522500));
+assert_norm (Spec.MLDSA.NttConstants.zeta_r 152 == (-655327));
+assert_norm (Spec.MLDSA.NttConstants.zeta_r 153 == (-3122442));
+assert_norm (Spec.MLDSA.NttConstants.zeta_r 154 == 2031748);
+assert_norm (Spec.MLDSA.NttConstants.zeta_r 155 == 3207046);
+assert_norm (Spec.MLDSA.NttConstants.zeta_r 156 == (-3556995));
+assert_norm (Spec.MLDSA.NttConstants.zeta_r 157 == (-525098));
+assert_norm (Spec.MLDSA.NttConstants.zeta_r 158 == (-768622));
+assert_norm (Spec.MLDSA.NttConstants.zeta_r 159 == (-3595838));
+assert_norm (Spec.MLDSA.NttConstants.zeta_r 160 == 342297);
+assert_norm (Spec.MLDSA.NttConstants.zeta_r 161 == 286988);
+assert_norm (Spec.MLDSA.NttConstants.zeta_r 162 == (-2437823));
+assert_norm (Spec.MLDSA.NttConstants.zeta_r 163 == 4108315);
+assert_norm (Spec.MLDSA.NttConstants.zeta_r 164 == 3437287);
+assert_norm (Spec.MLDSA.NttConstants.zeta_r 165 == (-3342277));
+assert_norm (Spec.MLDSA.NttConstants.zeta_r 166 == 1735879);
+assert_norm (Spec.MLDSA.NttConstants.zeta_r 167 == 203044);
+assert_norm (Spec.MLDSA.NttConstants.zeta_r 168 == 2842341);
+assert_norm (Spec.MLDSA.NttConstants.zeta_r 169 == 2691481);
+assert_norm (Spec.MLDSA.NttConstants.zeta_r 170 == (-2590150));
+assert_norm (Spec.MLDSA.NttConstants.zeta_r 171 == 1265009);
+assert_norm (Spec.MLDSA.NttConstants.zeta_r 172 == 4055324);
+assert_norm (Spec.MLDSA.NttConstants.zeta_r 173 == 1247620);
+assert_norm (Spec.MLDSA.NttConstants.zeta_r 174 == 2486353);
+assert_norm (Spec.MLDSA.NttConstants.zeta_r 175 == 1595974);
+assert_norm (Spec.MLDSA.NttConstants.zeta_r 176 == (-3767016));
+assert_norm (Spec.MLDSA.NttConstants.zeta_r 177 == 1250494);
+assert_norm (Spec.MLDSA.NttConstants.zeta_r 178 == 2635921);
+assert_norm (Spec.MLDSA.NttConstants.zeta_r 179 == (-3548272));
+assert_norm (Spec.MLDSA.NttConstants.zeta_r 180 == (-2994039));
+assert_norm (Spec.MLDSA.NttConstants.zeta_r 181 == 1869119);
+assert_norm (Spec.MLDSA.NttConstants.zeta_r 182 == 1903435);
+assert_norm (Spec.MLDSA.NttConstants.zeta_r 183 == (-1050970));
+assert_norm (Spec.MLDSA.NttConstants.zeta_r 184 == (-1333058));
+assert_norm (Spec.MLDSA.NttConstants.zeta_r 185 == 1237275);
+assert_norm (Spec.MLDSA.NttConstants.zeta_r 186 == (-3318210));
+assert_norm (Spec.MLDSA.NttConstants.zeta_r 187 == (-1430225));
+assert_norm (Spec.MLDSA.NttConstants.zeta_r 188 == (-451100));
+assert_norm (Spec.MLDSA.NttConstants.zeta_r 189 == 1312455);
+assert_norm (Spec.MLDSA.NttConstants.zeta_r 190 == 3306115);
+assert_norm (Spec.MLDSA.NttConstants.zeta_r 191 == (-1962642));
+assert_norm (Spec.MLDSA.NttConstants.zeta_r 192 == (-1279661));
+assert_norm (Spec.MLDSA.NttConstants.zeta_r 193 == 1917081);
+assert_norm (Spec.MLDSA.NttConstants.zeta_r 194 == (-2546312));
+assert_norm (Spec.MLDSA.NttConstants.zeta_r 195 == (-1374803));
+assert_norm (Spec.MLDSA.NttConstants.zeta_r 196 == 1500165);
+assert_norm (Spec.MLDSA.NttConstants.zeta_r 197 == 777191);
+assert_norm (Spec.MLDSA.NttConstants.zeta_r 198 == 2235880);
+assert_norm (Spec.MLDSA.NttConstants.zeta_r 199 == 3406031);
+assert_norm (Spec.MLDSA.NttConstants.zeta_r 200 == (-542412));
+assert_norm (Spec.MLDSA.NttConstants.zeta_r 201 == (-2831860));
+assert_norm (Spec.MLDSA.NttConstants.zeta_r 202 == (-1671176));
+assert_norm (Spec.MLDSA.NttConstants.zeta_r 203 == (-1846953));
+assert_norm (Spec.MLDSA.NttConstants.zeta_r 204 == (-2584293));
+assert_norm (Spec.MLDSA.NttConstants.zeta_r 205 == (-3724270));
+assert_norm (Spec.MLDSA.NttConstants.zeta_r 206 == 594136);
+assert_norm (Spec.MLDSA.NttConstants.zeta_r 207 == (-3776993));
+assert_norm (Spec.MLDSA.NttConstants.zeta_r 208 == (-2013608));
+assert_norm (Spec.MLDSA.NttConstants.zeta_r 209 == 2432395);
+assert_norm (Spec.MLDSA.NttConstants.zeta_r 210 == 2454455);
+assert_norm (Spec.MLDSA.NttConstants.zeta_r 211 == (-164721));
+assert_norm (Spec.MLDSA.NttConstants.zeta_r 212 == 1957272);
+assert_norm (Spec.MLDSA.NttConstants.zeta_r 213 == 3369112);
+assert_norm (Spec.MLDSA.NttConstants.zeta_r 214 == 185531);
+assert_norm (Spec.MLDSA.NttConstants.zeta_r 215 == (-1207385));
+assert_norm (Spec.MLDSA.NttConstants.zeta_r 216 == (-3183426));
+assert_norm (Spec.MLDSA.NttConstants.zeta_r 217 == 162844);
+assert_norm (Spec.MLDSA.NttConstants.zeta_r 218 == 1616392);
+assert_norm (Spec.MLDSA.NttConstants.zeta_r 219 == 3014001);
+assert_norm (Spec.MLDSA.NttConstants.zeta_r 220 == 810149);
+assert_norm (Spec.MLDSA.NttConstants.zeta_r 221 == 1652634);
+assert_norm (Spec.MLDSA.NttConstants.zeta_r 222 == (-3694233));
+assert_norm (Spec.MLDSA.NttConstants.zeta_r 223 == (-1799107));
+assert_norm (Spec.MLDSA.NttConstants.zeta_r 224 == (-3038916));
+assert_norm (Spec.MLDSA.NttConstants.zeta_r 225 == 3523897);
+assert_norm (Spec.MLDSA.NttConstants.zeta_r 226 == 3866901);
+assert_norm (Spec.MLDSA.NttConstants.zeta_r 227 == 269760);
+assert_norm (Spec.MLDSA.NttConstants.zeta_r 228 == 2213111);
+assert_norm (Spec.MLDSA.NttConstants.zeta_r 229 == (-975884));
+assert_norm (Spec.MLDSA.NttConstants.zeta_r 230 == 1717735);
+assert_norm (Spec.MLDSA.NttConstants.zeta_r 231 == 472078);
+assert_norm (Spec.MLDSA.NttConstants.zeta_r 232 == (-426683));
+assert_norm (Spec.MLDSA.NttConstants.zeta_r 233 == 1723600);
+assert_norm (Spec.MLDSA.NttConstants.zeta_r 234 == (-1803090));
+assert_norm (Spec.MLDSA.NttConstants.zeta_r 235 == 1910376);
+assert_norm (Spec.MLDSA.NttConstants.zeta_r 236 == (-1667432));
+assert_norm (Spec.MLDSA.NttConstants.zeta_r 237 == (-1104333));
+assert_norm (Spec.MLDSA.NttConstants.zeta_r 238 == (-260646));
+assert_norm (Spec.MLDSA.NttConstants.zeta_r 239 == (-3833893));
+assert_norm (Spec.MLDSA.NttConstants.zeta_r 240 == (-2939036));
+assert_norm (Spec.MLDSA.NttConstants.zeta_r 241 == (-2235985));
+assert_norm (Spec.MLDSA.NttConstants.zeta_r 242 == (-420899));
+assert_norm (Spec.MLDSA.NttConstants.zeta_r 243 == (-2286327));
+assert_norm (Spec.MLDSA.NttConstants.zeta_r 244 == 183443);
+assert_norm (Spec.MLDSA.NttConstants.zeta_r 245 == (-976891));
+assert_norm (Spec.MLDSA.NttConstants.zeta_r 246 == 1612842);
+assert_norm (Spec.MLDSA.NttConstants.zeta_r 247 == (-3545687));
+assert_norm (Spec.MLDSA.NttConstants.zeta_r 248 == (-554416));
+assert_norm (Spec.MLDSA.NttConstants.zeta_r 249 == 3919660);
+assert_norm (Spec.MLDSA.NttConstants.zeta_r 250 == (-48306));
+assert_norm (Spec.MLDSA.NttConstants.zeta_r 251 == (-1362209));
+assert_norm (Spec.MLDSA.NttConstants.zeta_r 252 == 3937738);
+assert_norm (Spec.MLDSA.NttConstants.zeta_r 253 == 1400424);
+assert_norm (Spec.MLDSA.NttConstants.zeta_r 254 == (-846154));
+assert_norm (Spec.MLDSA.NttConstants.zeta_r 255 == 1976782);
 lemma_inv_l0_driver_compose (Libcrux_ml_dsa.Simd.Portable.Ntt.chunks_of_re ${orig_re}) (Libcrux_ml_dsa.Simd.Portable.Ntt.chunks_of_re ${re})
 "#);
 }
@@ -653,70 +653,70 @@ fn invert_ntt_at_layer_1(re: &mut [Coefficients; SIMD_UNITS_IN_RING_ELEMENT]) {
     round(re, 30, -3041255, -3677745);
     round(re, 31, -1528703, -3930395);
     hax_lib::fstar!(r#"
-assert_norm (Spec.MLDSA.Ntt.zeta_r 64 == (-3930395));
-assert_norm (Spec.MLDSA.Ntt.zeta_r 65 == (-1528703));
-assert_norm (Spec.MLDSA.Ntt.zeta_r 66 == (-3677745));
-assert_norm (Spec.MLDSA.Ntt.zeta_r 67 == (-3041255));
-assert_norm (Spec.MLDSA.Ntt.zeta_r 68 == (-1452451));
-assert_norm (Spec.MLDSA.Ntt.zeta_r 69 == 3475950);
-assert_norm (Spec.MLDSA.Ntt.zeta_r 70 == 2176455);
-assert_norm (Spec.MLDSA.Ntt.zeta_r 71 == (-1585221));
-assert_norm (Spec.MLDSA.Ntt.zeta_r 72 == (-1257611));
-assert_norm (Spec.MLDSA.Ntt.zeta_r 73 == 1939314);
-assert_norm (Spec.MLDSA.Ntt.zeta_r 74 == (-4083598));
-assert_norm (Spec.MLDSA.Ntt.zeta_r 75 == (-1000202));
-assert_norm (Spec.MLDSA.Ntt.zeta_r 76 == (-3190144));
-assert_norm (Spec.MLDSA.Ntt.zeta_r 77 == (-3157330));
-assert_norm (Spec.MLDSA.Ntt.zeta_r 78 == (-3632928));
-assert_norm (Spec.MLDSA.Ntt.zeta_r 79 == 126922);
-assert_norm (Spec.MLDSA.Ntt.zeta_r 80 == 3412210);
-assert_norm (Spec.MLDSA.Ntt.zeta_r 81 == (-983419));
-assert_norm (Spec.MLDSA.Ntt.zeta_r 82 == 2147896);
-assert_norm (Spec.MLDSA.Ntt.zeta_r 83 == 2715295);
-assert_norm (Spec.MLDSA.Ntt.zeta_r 84 == (-2967645));
-assert_norm (Spec.MLDSA.Ntt.zeta_r 85 == (-3693493));
-assert_norm (Spec.MLDSA.Ntt.zeta_r 86 == (-411027));
-assert_norm (Spec.MLDSA.Ntt.zeta_r 87 == (-2477047));
-assert_norm (Spec.MLDSA.Ntt.zeta_r 88 == (-671102));
-assert_norm (Spec.MLDSA.Ntt.zeta_r 89 == (-1228525));
-assert_norm (Spec.MLDSA.Ntt.zeta_r 90 == (-22981));
-assert_norm (Spec.MLDSA.Ntt.zeta_r 91 == (-1308169));
-assert_norm (Spec.MLDSA.Ntt.zeta_r 92 == (-381987));
-assert_norm (Spec.MLDSA.Ntt.zeta_r 93 == 1349076);
-assert_norm (Spec.MLDSA.Ntt.zeta_r 94 == 1852771);
-assert_norm (Spec.MLDSA.Ntt.zeta_r 95 == (-1430430));
-assert_norm (Spec.MLDSA.Ntt.zeta_r 96 == (-3343383));
-assert_norm (Spec.MLDSA.Ntt.zeta_r 97 == 264944);
-assert_norm (Spec.MLDSA.Ntt.zeta_r 98 == 508951);
-assert_norm (Spec.MLDSA.Ntt.zeta_r 99 == 3097992);
-assert_norm (Spec.MLDSA.Ntt.zeta_r 100 == 44288);
-assert_norm (Spec.MLDSA.Ntt.zeta_r 101 == (-1100098));
-assert_norm (Spec.MLDSA.Ntt.zeta_r 102 == 904516);
-assert_norm (Spec.MLDSA.Ntt.zeta_r 103 == 3958618);
-assert_norm (Spec.MLDSA.Ntt.zeta_r 104 == (-3724342));
-assert_norm (Spec.MLDSA.Ntt.zeta_r 105 == (-8578));
-assert_norm (Spec.MLDSA.Ntt.zeta_r 106 == 1653064);
-assert_norm (Spec.MLDSA.Ntt.zeta_r 107 == (-3249728));
-assert_norm (Spec.MLDSA.Ntt.zeta_r 108 == 2389356);
-assert_norm (Spec.MLDSA.Ntt.zeta_r 109 == (-210977));
-assert_norm (Spec.MLDSA.Ntt.zeta_r 110 == 759969);
-assert_norm (Spec.MLDSA.Ntt.zeta_r 111 == (-1316856));
-assert_norm (Spec.MLDSA.Ntt.zeta_r 112 == 189548);
-assert_norm (Spec.MLDSA.Ntt.zeta_r 113 == (-3553272));
-assert_norm (Spec.MLDSA.Ntt.zeta_r 114 == 3159746);
-assert_norm (Spec.MLDSA.Ntt.zeta_r 115 == (-1851402));
-assert_norm (Spec.MLDSA.Ntt.zeta_r 116 == (-2409325));
-assert_norm (Spec.MLDSA.Ntt.zeta_r 117 == (-177440));
-assert_norm (Spec.MLDSA.Ntt.zeta_r 118 == 1315589);
-assert_norm (Spec.MLDSA.Ntt.zeta_r 119 == 1341330);
-assert_norm (Spec.MLDSA.Ntt.zeta_r 120 == 1285669);
-assert_norm (Spec.MLDSA.Ntt.zeta_r 121 == (-1584928));
-assert_norm (Spec.MLDSA.Ntt.zeta_r 122 == (-812732));
-assert_norm (Spec.MLDSA.Ntt.zeta_r 123 == (-1439742));
-assert_norm (Spec.MLDSA.Ntt.zeta_r 124 == (-3019102));
-assert_norm (Spec.MLDSA.Ntt.zeta_r 125 == (-3881060));
-assert_norm (Spec.MLDSA.Ntt.zeta_r 126 == (-3628969));
-assert_norm (Spec.MLDSA.Ntt.zeta_r 127 == 3839961);
+assert_norm (Spec.MLDSA.NttConstants.zeta_r 64 == (-3930395));
+assert_norm (Spec.MLDSA.NttConstants.zeta_r 65 == (-1528703));
+assert_norm (Spec.MLDSA.NttConstants.zeta_r 66 == (-3677745));
+assert_norm (Spec.MLDSA.NttConstants.zeta_r 67 == (-3041255));
+assert_norm (Spec.MLDSA.NttConstants.zeta_r 68 == (-1452451));
+assert_norm (Spec.MLDSA.NttConstants.zeta_r 69 == 3475950);
+assert_norm (Spec.MLDSA.NttConstants.zeta_r 70 == 2176455);
+assert_norm (Spec.MLDSA.NttConstants.zeta_r 71 == (-1585221));
+assert_norm (Spec.MLDSA.NttConstants.zeta_r 72 == (-1257611));
+assert_norm (Spec.MLDSA.NttConstants.zeta_r 73 == 1939314);
+assert_norm (Spec.MLDSA.NttConstants.zeta_r 74 == (-4083598));
+assert_norm (Spec.MLDSA.NttConstants.zeta_r 75 == (-1000202));
+assert_norm (Spec.MLDSA.NttConstants.zeta_r 76 == (-3190144));
+assert_norm (Spec.MLDSA.NttConstants.zeta_r 77 == (-3157330));
+assert_norm (Spec.MLDSA.NttConstants.zeta_r 78 == (-3632928));
+assert_norm (Spec.MLDSA.NttConstants.zeta_r 79 == 126922);
+assert_norm (Spec.MLDSA.NttConstants.zeta_r 80 == 3412210);
+assert_norm (Spec.MLDSA.NttConstants.zeta_r 81 == (-983419));
+assert_norm (Spec.MLDSA.NttConstants.zeta_r 82 == 2147896);
+assert_norm (Spec.MLDSA.NttConstants.zeta_r 83 == 2715295);
+assert_norm (Spec.MLDSA.NttConstants.zeta_r 84 == (-2967645));
+assert_norm (Spec.MLDSA.NttConstants.zeta_r 85 == (-3693493));
+assert_norm (Spec.MLDSA.NttConstants.zeta_r 86 == (-411027));
+assert_norm (Spec.MLDSA.NttConstants.zeta_r 87 == (-2477047));
+assert_norm (Spec.MLDSA.NttConstants.zeta_r 88 == (-671102));
+assert_norm (Spec.MLDSA.NttConstants.zeta_r 89 == (-1228525));
+assert_norm (Spec.MLDSA.NttConstants.zeta_r 90 == (-22981));
+assert_norm (Spec.MLDSA.NttConstants.zeta_r 91 == (-1308169));
+assert_norm (Spec.MLDSA.NttConstants.zeta_r 92 == (-381987));
+assert_norm (Spec.MLDSA.NttConstants.zeta_r 93 == 1349076);
+assert_norm (Spec.MLDSA.NttConstants.zeta_r 94 == 1852771);
+assert_norm (Spec.MLDSA.NttConstants.zeta_r 95 == (-1430430));
+assert_norm (Spec.MLDSA.NttConstants.zeta_r 96 == (-3343383));
+assert_norm (Spec.MLDSA.NttConstants.zeta_r 97 == 264944);
+assert_norm (Spec.MLDSA.NttConstants.zeta_r 98 == 508951);
+assert_norm (Spec.MLDSA.NttConstants.zeta_r 99 == 3097992);
+assert_norm (Spec.MLDSA.NttConstants.zeta_r 100 == 44288);
+assert_norm (Spec.MLDSA.NttConstants.zeta_r 101 == (-1100098));
+assert_norm (Spec.MLDSA.NttConstants.zeta_r 102 == 904516);
+assert_norm (Spec.MLDSA.NttConstants.zeta_r 103 == 3958618);
+assert_norm (Spec.MLDSA.NttConstants.zeta_r 104 == (-3724342));
+assert_norm (Spec.MLDSA.NttConstants.zeta_r 105 == (-8578));
+assert_norm (Spec.MLDSA.NttConstants.zeta_r 106 == 1653064);
+assert_norm (Spec.MLDSA.NttConstants.zeta_r 107 == (-3249728));
+assert_norm (Spec.MLDSA.NttConstants.zeta_r 108 == 2389356);
+assert_norm (Spec.MLDSA.NttConstants.zeta_r 109 == (-210977));
+assert_norm (Spec.MLDSA.NttConstants.zeta_r 110 == 759969);
+assert_norm (Spec.MLDSA.NttConstants.zeta_r 111 == (-1316856));
+assert_norm (Spec.MLDSA.NttConstants.zeta_r 112 == 189548);
+assert_norm (Spec.MLDSA.NttConstants.zeta_r 113 == (-3553272));
+assert_norm (Spec.MLDSA.NttConstants.zeta_r 114 == 3159746);
+assert_norm (Spec.MLDSA.NttConstants.zeta_r 115 == (-1851402));
+assert_norm (Spec.MLDSA.NttConstants.zeta_r 116 == (-2409325));
+assert_norm (Spec.MLDSA.NttConstants.zeta_r 117 == (-177440));
+assert_norm (Spec.MLDSA.NttConstants.zeta_r 118 == 1315589);
+assert_norm (Spec.MLDSA.NttConstants.zeta_r 119 == 1341330);
+assert_norm (Spec.MLDSA.NttConstants.zeta_r 120 == 1285669);
+assert_norm (Spec.MLDSA.NttConstants.zeta_r 121 == (-1584928));
+assert_norm (Spec.MLDSA.NttConstants.zeta_r 122 == (-812732));
+assert_norm (Spec.MLDSA.NttConstants.zeta_r 123 == (-1439742));
+assert_norm (Spec.MLDSA.NttConstants.zeta_r 124 == (-3019102));
+assert_norm (Spec.MLDSA.NttConstants.zeta_r 125 == (-3881060));
+assert_norm (Spec.MLDSA.NttConstants.zeta_r 126 == (-3628969));
+assert_norm (Spec.MLDSA.NttConstants.zeta_r 127 == 3839961);
 lemma_inv_l1_driver_compose (Libcrux_ml_dsa.Simd.Portable.Ntt.chunks_of_re ${orig_re}) (Libcrux_ml_dsa.Simd.Portable.Ntt.chunks_of_re ${re})
 "#);
 }
@@ -796,38 +796,38 @@ fn invert_ntt_at_layer_2(re: &mut [Coefficients; SIMD_UNITS_IN_RING_ELEMENT]) {
     round(re, 30, 95776);
     round(re, 31, 2706023);
     hax_lib::fstar!(r#"
-assert_norm (Spec.MLDSA.Ntt.zeta_r 32 == 2706023);
-assert_norm (Spec.MLDSA.Ntt.zeta_r 33 == 95776);
-assert_norm (Spec.MLDSA.Ntt.zeta_r 34 == 3077325);
-assert_norm (Spec.MLDSA.Ntt.zeta_r 35 == 3530437);
-assert_norm (Spec.MLDSA.Ntt.zeta_r 36 == (-1661693));
-assert_norm (Spec.MLDSA.Ntt.zeta_r 37 == (-3592148));
-assert_norm (Spec.MLDSA.Ntt.zeta_r 38 == (-2537516));
-assert_norm (Spec.MLDSA.Ntt.zeta_r 39 == 3915439);
-assert_norm (Spec.MLDSA.Ntt.zeta_r 40 == (-3861115));
-assert_norm (Spec.MLDSA.Ntt.zeta_r 41 == (-3043716));
-assert_norm (Spec.MLDSA.Ntt.zeta_r 42 == 3574422);
-assert_norm (Spec.MLDSA.Ntt.zeta_r 43 == (-2867647));
-assert_norm (Spec.MLDSA.Ntt.zeta_r 44 == 3539968);
-assert_norm (Spec.MLDSA.Ntt.zeta_r 45 == (-300467));
-assert_norm (Spec.MLDSA.Ntt.zeta_r 46 == 2348700);
-assert_norm (Spec.MLDSA.Ntt.zeta_r 47 == (-539299));
-assert_norm (Spec.MLDSA.Ntt.zeta_r 48 == (-1699267));
-assert_norm (Spec.MLDSA.Ntt.zeta_r 49 == (-1643818));
-assert_norm (Spec.MLDSA.Ntt.zeta_r 50 == 3505694);
-assert_norm (Spec.MLDSA.Ntt.zeta_r 51 == (-3821735));
-assert_norm (Spec.MLDSA.Ntt.zeta_r 52 == 3507263);
-assert_norm (Spec.MLDSA.Ntt.zeta_r 53 == (-2140649));
-assert_norm (Spec.MLDSA.Ntt.zeta_r 54 == (-1600420));
-assert_norm (Spec.MLDSA.Ntt.zeta_r 55 == 3699596);
-assert_norm (Spec.MLDSA.Ntt.zeta_r 56 == 811944);
-assert_norm (Spec.MLDSA.Ntt.zeta_r 57 == 531354);
-assert_norm (Spec.MLDSA.Ntt.zeta_r 58 == 954230);
-assert_norm (Spec.MLDSA.Ntt.zeta_r 59 == 3881043);
-assert_norm (Spec.MLDSA.Ntt.zeta_r 60 == 3900724);
-assert_norm (Spec.MLDSA.Ntt.zeta_r 61 == (-2556880));
-assert_norm (Spec.MLDSA.Ntt.zeta_r 62 == 2071892);
-assert_norm (Spec.MLDSA.Ntt.zeta_r 63 == (-2797779));
+assert_norm (Spec.MLDSA.NttConstants.zeta_r 32 == 2706023);
+assert_norm (Spec.MLDSA.NttConstants.zeta_r 33 == 95776);
+assert_norm (Spec.MLDSA.NttConstants.zeta_r 34 == 3077325);
+assert_norm (Spec.MLDSA.NttConstants.zeta_r 35 == 3530437);
+assert_norm (Spec.MLDSA.NttConstants.zeta_r 36 == (-1661693));
+assert_norm (Spec.MLDSA.NttConstants.zeta_r 37 == (-3592148));
+assert_norm (Spec.MLDSA.NttConstants.zeta_r 38 == (-2537516));
+assert_norm (Spec.MLDSA.NttConstants.zeta_r 39 == 3915439);
+assert_norm (Spec.MLDSA.NttConstants.zeta_r 40 == (-3861115));
+assert_norm (Spec.MLDSA.NttConstants.zeta_r 41 == (-3043716));
+assert_norm (Spec.MLDSA.NttConstants.zeta_r 42 == 3574422);
+assert_norm (Spec.MLDSA.NttConstants.zeta_r 43 == (-2867647));
+assert_norm (Spec.MLDSA.NttConstants.zeta_r 44 == 3539968);
+assert_norm (Spec.MLDSA.NttConstants.zeta_r 45 == (-300467));
+assert_norm (Spec.MLDSA.NttConstants.zeta_r 46 == 2348700);
+assert_norm (Spec.MLDSA.NttConstants.zeta_r 47 == (-539299));
+assert_norm (Spec.MLDSA.NttConstants.zeta_r 48 == (-1699267));
+assert_norm (Spec.MLDSA.NttConstants.zeta_r 49 == (-1643818));
+assert_norm (Spec.MLDSA.NttConstants.zeta_r 50 == 3505694);
+assert_norm (Spec.MLDSA.NttConstants.zeta_r 51 == (-3821735));
+assert_norm (Spec.MLDSA.NttConstants.zeta_r 52 == 3507263);
+assert_norm (Spec.MLDSA.NttConstants.zeta_r 53 == (-2140649));
+assert_norm (Spec.MLDSA.NttConstants.zeta_r 54 == (-1600420));
+assert_norm (Spec.MLDSA.NttConstants.zeta_r 55 == 3699596);
+assert_norm (Spec.MLDSA.NttConstants.zeta_r 56 == 811944);
+assert_norm (Spec.MLDSA.NttConstants.zeta_r 57 == 531354);
+assert_norm (Spec.MLDSA.NttConstants.zeta_r 58 == 954230);
+assert_norm (Spec.MLDSA.NttConstants.zeta_r 59 == 3881043);
+assert_norm (Spec.MLDSA.NttConstants.zeta_r 60 == 3900724);
+assert_norm (Spec.MLDSA.NttConstants.zeta_r 61 == (-2556880));
+assert_norm (Spec.MLDSA.NttConstants.zeta_r 62 == 2071892);
+assert_norm (Spec.MLDSA.NttConstants.zeta_r 63 == (-2797779));
 lemma_inv_l2_driver_compose (Libcrux_ml_dsa.Simd.Portable.Ntt.chunks_of_re ${orig_re}) (Libcrux_ml_dsa.Simd.Portable.Ntt.chunks_of_re ${re})
 "#);
 }
@@ -931,7 +931,7 @@ let lemma_inv_l3_cross_driver_compose
             (u % 2 == 0) ==>
             unit_fe_post_inv_cross (Seq.index orig_re u).f_values (Seq.index orig_re (u+1)).f_values
                                    (Seq.index re u).f_values (Seq.index re (u+1)).f_values
-                                   (mk_i32 (Spec.MLDSA.Ntt.zeta_r (31 - u / 2)))))
+                                   (mk_i32 (Spec.MLDSA.NttConstants.zeta_r (31 - u / 2)))))
         (ensures
           (let in_flat = Hacspec_ml_dsa.Commute.Chunk.simd_units_to_array (Libcrux_ml_dsa.Simd.Portable.Ntt.chunks_of_re orig_re) in
            let out_flat = Hacspec_ml_dsa.Commute.Chunk.simd_units_to_array (Libcrux_ml_dsa.Simd.Portable.Ntt.chunks_of_re re) in
@@ -941,7 +941,7 @@ let lemma_inv_l3_cross_driver_compose
   = let orig = Libcrux_ml_dsa.Simd.Portable.Ntt.chunks_of_re orig_re in
     let fut = Libcrux_ml_dsa.Simd.Portable.Ntt.chunks_of_re re in
     let zm (u: nat{u < 32}) : (z: i32{Spec.Utils.is_i32b 4190208 z}) =
-        mk_i32 (Spec.MLDSA.Ntt.zeta_r (31 - u / 2)) in
+        mk_i32 (Spec.MLDSA.NttConstants.zeta_r (31 - u / 2)) in
     Libcrux_ml_dsa.Simd.Portable.Ntt.forall32_elim_1d (fun u -> (u % 2 == 0) ==>
         unit_fe_post_inv_cross (Seq.index orig_re u).f_values (Seq.index orig_re (u+1)).f_values
                                (Seq.index re u).f_values (Seq.index re (u+1)).f_values (zm u));
@@ -971,7 +971,7 @@ let lemma_inv_l3_cross_driver_compose
         (v (Hacspec_ml_dsa.Ntt.v_ZETAS.[ mk_usize (31 - u / 2) ] <: i32) * pow2 32) % 8380417)
       = if (u % 2 = 0) then begin
           reveal_opaque (`%Spec.MLDSA.Math.mod_q) (Spec.MLDSA.Math.mod_q);
-          let _ = Spec.MLDSA.Ntt.zeta_r (31 - u / 2) in
+          let _ = Spec.MLDSA.NttConstants.zeta_r (31 - u / 2) in
           Hacspec_ml_dsa.Commute.Chunk.lemma_v_zetas_eq_zeta (31 - u / 2)
         end
      in Classical.forall_intro aux_z);
@@ -988,7 +988,7 @@ let lemma_inv_l4_cross_driver_compose
             (u % 4 < 2) ==>
             unit_fe_post_inv_cross (Seq.index orig_re u).f_values (Seq.index orig_re (u+2)).f_values
                                    (Seq.index re u).f_values (Seq.index re (u+2)).f_values
-                                   (mk_i32 (Spec.MLDSA.Ntt.zeta_r (15 - u / 4)))))
+                                   (mk_i32 (Spec.MLDSA.NttConstants.zeta_r (15 - u / 4)))))
         (ensures
           (let in_flat = Hacspec_ml_dsa.Commute.Chunk.simd_units_to_array (Libcrux_ml_dsa.Simd.Portable.Ntt.chunks_of_re orig_re) in
            let out_flat = Hacspec_ml_dsa.Commute.Chunk.simd_units_to_array (Libcrux_ml_dsa.Simd.Portable.Ntt.chunks_of_re re) in
@@ -998,7 +998,7 @@ let lemma_inv_l4_cross_driver_compose
   = let orig = Libcrux_ml_dsa.Simd.Portable.Ntt.chunks_of_re orig_re in
     let fut = Libcrux_ml_dsa.Simd.Portable.Ntt.chunks_of_re re in
     let zm (u: nat{u < 32}) : (z: i32{Spec.Utils.is_i32b 4190208 z}) =
-        mk_i32 (Spec.MLDSA.Ntt.zeta_r (15 - u / 4)) in
+        mk_i32 (Spec.MLDSA.NttConstants.zeta_r (15 - u / 4)) in
     Libcrux_ml_dsa.Simd.Portable.Ntt.forall32_elim_1d (fun u -> (u % 4 < 2) ==>
         unit_fe_post_inv_cross (Seq.index orig_re u).f_values (Seq.index orig_re (u+2)).f_values
                                (Seq.index re u).f_values (Seq.index re (u+2)).f_values (zm u));
@@ -1028,7 +1028,7 @@ let lemma_inv_l4_cross_driver_compose
         (v (Hacspec_ml_dsa.Ntt.v_ZETAS.[ mk_usize (15 - u / 4) ] <: i32) * pow2 32) % 8380417)
       = if (u % 4 < 2) then begin
           reveal_opaque (`%Spec.MLDSA.Math.mod_q) (Spec.MLDSA.Math.mod_q);
-          let _ = Spec.MLDSA.Ntt.zeta_r (15 - u / 4) in
+          let _ = Spec.MLDSA.NttConstants.zeta_r (15 - u / 4) in
           Hacspec_ml_dsa.Commute.Chunk.lemma_v_zetas_eq_zeta (15 - u / 4)
         end
      in Classical.forall_intro aux_z);
@@ -1045,7 +1045,7 @@ let lemma_inv_l5_cross_driver_compose
             (u % 8 < 4) ==>
             unit_fe_post_inv_cross (Seq.index orig_re u).f_values (Seq.index orig_re (u+4)).f_values
                                    (Seq.index re u).f_values (Seq.index re (u+4)).f_values
-                                   (mk_i32 (Spec.MLDSA.Ntt.zeta_r (7 - u / 8)))))
+                                   (mk_i32 (Spec.MLDSA.NttConstants.zeta_r (7 - u / 8)))))
         (ensures
           (let in_flat = Hacspec_ml_dsa.Commute.Chunk.simd_units_to_array (Libcrux_ml_dsa.Simd.Portable.Ntt.chunks_of_re orig_re) in
            let out_flat = Hacspec_ml_dsa.Commute.Chunk.simd_units_to_array (Libcrux_ml_dsa.Simd.Portable.Ntt.chunks_of_re re) in
@@ -1055,7 +1055,7 @@ let lemma_inv_l5_cross_driver_compose
   = let orig = Libcrux_ml_dsa.Simd.Portable.Ntt.chunks_of_re orig_re in
     let fut = Libcrux_ml_dsa.Simd.Portable.Ntt.chunks_of_re re in
     let zm (u: nat{u < 32}) : (z: i32{Spec.Utils.is_i32b 4190208 z}) =
-        mk_i32 (Spec.MLDSA.Ntt.zeta_r (7 - u / 8)) in
+        mk_i32 (Spec.MLDSA.NttConstants.zeta_r (7 - u / 8)) in
     Libcrux_ml_dsa.Simd.Portable.Ntt.forall32_elim_1d (fun u -> (u % 8 < 4) ==>
         unit_fe_post_inv_cross (Seq.index orig_re u).f_values (Seq.index orig_re (u+4)).f_values
                                (Seq.index re u).f_values (Seq.index re (u+4)).f_values (zm u));
@@ -1085,7 +1085,7 @@ let lemma_inv_l5_cross_driver_compose
         (v (Hacspec_ml_dsa.Ntt.v_ZETAS.[ mk_usize (7 - u / 8) ] <: i32) * pow2 32) % 8380417)
       = if (u % 8 < 4) then begin
           reveal_opaque (`%Spec.MLDSA.Math.mod_q) (Spec.MLDSA.Math.mod_q);
-          let _ = Spec.MLDSA.Ntt.zeta_r (7 - u / 8) in
+          let _ = Spec.MLDSA.NttConstants.zeta_r (7 - u / 8) in
           Hacspec_ml_dsa.Commute.Chunk.lemma_v_zetas_eq_zeta (7 - u / 8)
         end
      in Classical.forall_intro aux_z);
@@ -1102,7 +1102,7 @@ let lemma_inv_l6_cross_driver_compose
             (u % 16 < 8) ==>
             unit_fe_post_inv_cross (Seq.index orig_re u).f_values (Seq.index orig_re (u+8)).f_values
                                    (Seq.index re u).f_values (Seq.index re (u+8)).f_values
-                                   (mk_i32 (Spec.MLDSA.Ntt.zeta_r (3 - u / 16)))))
+                                   (mk_i32 (Spec.MLDSA.NttConstants.zeta_r (3 - u / 16)))))
         (ensures
           (let in_flat = Hacspec_ml_dsa.Commute.Chunk.simd_units_to_array (Libcrux_ml_dsa.Simd.Portable.Ntt.chunks_of_re orig_re) in
            let out_flat = Hacspec_ml_dsa.Commute.Chunk.simd_units_to_array (Libcrux_ml_dsa.Simd.Portable.Ntt.chunks_of_re re) in
@@ -1112,7 +1112,7 @@ let lemma_inv_l6_cross_driver_compose
   = let orig = Libcrux_ml_dsa.Simd.Portable.Ntt.chunks_of_re orig_re in
     let fut = Libcrux_ml_dsa.Simd.Portable.Ntt.chunks_of_re re in
     let zm (u: nat{u < 32}) : (z: i32{Spec.Utils.is_i32b 4190208 z}) =
-        mk_i32 (Spec.MLDSA.Ntt.zeta_r (3 - u / 16)) in
+        mk_i32 (Spec.MLDSA.NttConstants.zeta_r (3 - u / 16)) in
     Libcrux_ml_dsa.Simd.Portable.Ntt.forall32_elim_1d (fun u -> (u % 16 < 8) ==>
         unit_fe_post_inv_cross (Seq.index orig_re u).f_values (Seq.index orig_re (u+8)).f_values
                                (Seq.index re u).f_values (Seq.index re (u+8)).f_values (zm u));
@@ -1142,7 +1142,7 @@ let lemma_inv_l6_cross_driver_compose
         (v (Hacspec_ml_dsa.Ntt.v_ZETAS.[ mk_usize (3 - u / 16) ] <: i32) * pow2 32) % 8380417)
       = if (u % 16 < 8) then begin
           reveal_opaque (`%Spec.MLDSA.Math.mod_q) (Spec.MLDSA.Math.mod_q);
-          let _ = Spec.MLDSA.Ntt.zeta_r (3 - u / 16) in
+          let _ = Spec.MLDSA.NttConstants.zeta_r (3 - u / 16) in
           Hacspec_ml_dsa.Commute.Chunk.lemma_v_zetas_eq_zeta (3 - u / 16)
         end
      in Classical.forall_intro aux_z);
@@ -1159,7 +1159,7 @@ let lemma_inv_l7_cross_driver_compose
             (u % 32 < 16) ==>
             unit_fe_post_inv_cross (Seq.index orig_re u).f_values (Seq.index orig_re (u+16)).f_values
                                    (Seq.index re u).f_values (Seq.index re (u+16)).f_values
-                                   (mk_i32 (Spec.MLDSA.Ntt.zeta_r 1))))
+                                   (mk_i32 (Spec.MLDSA.NttConstants.zeta_r 1))))
         (ensures
           (let in_flat = Hacspec_ml_dsa.Commute.Chunk.simd_units_to_array (Libcrux_ml_dsa.Simd.Portable.Ntt.chunks_of_re orig_re) in
            let out_flat = Hacspec_ml_dsa.Commute.Chunk.simd_units_to_array (Libcrux_ml_dsa.Simd.Portable.Ntt.chunks_of_re re) in
@@ -1169,7 +1169,7 @@ let lemma_inv_l7_cross_driver_compose
   = let orig = Libcrux_ml_dsa.Simd.Portable.Ntt.chunks_of_re orig_re in
     let fut = Libcrux_ml_dsa.Simd.Portable.Ntt.chunks_of_re re in
     let zm (u: nat{u < 32}) : (z: i32{Spec.Utils.is_i32b 4190208 z}) =
-        mk_i32 (Spec.MLDSA.Ntt.zeta_r 1) in
+        mk_i32 (Spec.MLDSA.NttConstants.zeta_r 1) in
     Libcrux_ml_dsa.Simd.Portable.Ntt.forall32_elim_1d (fun u -> (u % 32 < 16) ==>
         unit_fe_post_inv_cross (Seq.index orig_re u).f_values (Seq.index orig_re (u+16)).f_values
                                (Seq.index re u).f_values (Seq.index re (u+16)).f_values (zm u));
@@ -1200,7 +1200,7 @@ let lemma_inv_l7_cross_driver_compose
       = if (u % 32 < 16) then begin
           reveal_opaque (`%Spec.MLDSA.Math.mod_q) (Spec.MLDSA.Math.mod_q);
           assert (1 - u / 32 == 1);
-          let _ = Spec.MLDSA.Ntt.zeta_r 1 in
+          let _ = Spec.MLDSA.NttConstants.zeta_r 1 in
           Hacspec_ml_dsa.Commute.Chunk.lemma_v_zetas_eq_zeta 1
         end
      in Classical.forall_intro aux_z);
@@ -1323,41 +1323,41 @@ fn invert_ntt_at_layer_3(re: &mut [Coefficients; SIMD_UNITS_IN_RING_ELEMENT]) {
     outer_3_plus::<{ (15 * STEP * 2) / COEFFICIENTS_IN_SIMD_UNIT }, STEP_BY, 2725464>(re);
 
     hax_lib::fstar!(r#"
-assert_norm (Spec.MLDSA.Ntt.zeta_r 16 == 2725464);
-assert_norm (Spec.MLDSA.Ntt.zeta_r 17 == 1024112);
-assert_norm (Spec.MLDSA.Ntt.zeta_r 18 == (-1079900));
-assert_norm (Spec.MLDSA.Ntt.zeta_r 19 == 3585928);
-assert_norm (Spec.MLDSA.Ntt.zeta_r 20 == (-549488));
-assert_norm (Spec.MLDSA.Ntt.zeta_r 21 == (-1119584));
-assert_norm (Spec.MLDSA.Ntt.zeta_r 22 == 2619752);
-assert_norm (Spec.MLDSA.Ntt.zeta_r 23 == (-2108549));
-assert_norm (Spec.MLDSA.Ntt.zeta_r 24 == (-2118186));
-assert_norm (Spec.MLDSA.Ntt.zeta_r 25 == (-3859737));
-assert_norm (Spec.MLDSA.Ntt.zeta_r 26 == (-1399561));
-assert_norm (Spec.MLDSA.Ntt.zeta_r 27 == (-3277672));
-assert_norm (Spec.MLDSA.Ntt.zeta_r 28 == 1757237);
-assert_norm (Spec.MLDSA.Ntt.zeta_r 29 == (-19422));
-assert_norm (Spec.MLDSA.Ntt.zeta_r 30 == 4010497);
-assert_norm (Spec.MLDSA.Ntt.zeta_r 31 == 280005);
+assert_norm (Spec.MLDSA.NttConstants.zeta_r 16 == 2725464);
+assert_norm (Spec.MLDSA.NttConstants.zeta_r 17 == 1024112);
+assert_norm (Spec.MLDSA.NttConstants.zeta_r 18 == (-1079900));
+assert_norm (Spec.MLDSA.NttConstants.zeta_r 19 == 3585928);
+assert_norm (Spec.MLDSA.NttConstants.zeta_r 20 == (-549488));
+assert_norm (Spec.MLDSA.NttConstants.zeta_r 21 == (-1119584));
+assert_norm (Spec.MLDSA.NttConstants.zeta_r 22 == 2619752);
+assert_norm (Spec.MLDSA.NttConstants.zeta_r 23 == (-2108549));
+assert_norm (Spec.MLDSA.NttConstants.zeta_r 24 == (-2118186));
+assert_norm (Spec.MLDSA.NttConstants.zeta_r 25 == (-3859737));
+assert_norm (Spec.MLDSA.NttConstants.zeta_r 26 == (-1399561));
+assert_norm (Spec.MLDSA.NttConstants.zeta_r 27 == (-3277672));
+assert_norm (Spec.MLDSA.NttConstants.zeta_r 28 == 1757237);
+assert_norm (Spec.MLDSA.NttConstants.zeta_r 29 == (-19422));
+assert_norm (Spec.MLDSA.NttConstants.zeta_r 30 == 4010497);
+assert_norm (Spec.MLDSA.NttConstants.zeta_r 31 == 280005);
 // Flat-asserts: discharge each even-u inverse cross atom (orig_re vs final re) in
 // ISOLATION (one frame each) so the compose lemma's forall32 precondition is
 // assembled from 16 ground facts instead of a forall32-of-forall32 cascade.
-assert (unit_fe_post_inv_cross (Seq.index ${orig_re} 0).f_values (Seq.index ${orig_re} 1).f_values (Seq.index ${re} 0).f_values (Seq.index ${re} 1).f_values (mk_i32 (Spec.MLDSA.Ntt.zeta_r 31)));
-assert (unit_fe_post_inv_cross (Seq.index ${orig_re} 2).f_values (Seq.index ${orig_re} 3).f_values (Seq.index ${re} 2).f_values (Seq.index ${re} 3).f_values (mk_i32 (Spec.MLDSA.Ntt.zeta_r 30)));
-assert (unit_fe_post_inv_cross (Seq.index ${orig_re} 4).f_values (Seq.index ${orig_re} 5).f_values (Seq.index ${re} 4).f_values (Seq.index ${re} 5).f_values (mk_i32 (Spec.MLDSA.Ntt.zeta_r 29)));
-assert (unit_fe_post_inv_cross (Seq.index ${orig_re} 6).f_values (Seq.index ${orig_re} 7).f_values (Seq.index ${re} 6).f_values (Seq.index ${re} 7).f_values (mk_i32 (Spec.MLDSA.Ntt.zeta_r 28)));
-assert (unit_fe_post_inv_cross (Seq.index ${orig_re} 8).f_values (Seq.index ${orig_re} 9).f_values (Seq.index ${re} 8).f_values (Seq.index ${re} 9).f_values (mk_i32 (Spec.MLDSA.Ntt.zeta_r 27)));
-assert (unit_fe_post_inv_cross (Seq.index ${orig_re} 10).f_values (Seq.index ${orig_re} 11).f_values (Seq.index ${re} 10).f_values (Seq.index ${re} 11).f_values (mk_i32 (Spec.MLDSA.Ntt.zeta_r 26)));
-assert (unit_fe_post_inv_cross (Seq.index ${orig_re} 12).f_values (Seq.index ${orig_re} 13).f_values (Seq.index ${re} 12).f_values (Seq.index ${re} 13).f_values (mk_i32 (Spec.MLDSA.Ntt.zeta_r 25)));
-assert (unit_fe_post_inv_cross (Seq.index ${orig_re} 14).f_values (Seq.index ${orig_re} 15).f_values (Seq.index ${re} 14).f_values (Seq.index ${re} 15).f_values (mk_i32 (Spec.MLDSA.Ntt.zeta_r 24)));
-assert (unit_fe_post_inv_cross (Seq.index ${orig_re} 16).f_values (Seq.index ${orig_re} 17).f_values (Seq.index ${re} 16).f_values (Seq.index ${re} 17).f_values (mk_i32 (Spec.MLDSA.Ntt.zeta_r 23)));
-assert (unit_fe_post_inv_cross (Seq.index ${orig_re} 18).f_values (Seq.index ${orig_re} 19).f_values (Seq.index ${re} 18).f_values (Seq.index ${re} 19).f_values (mk_i32 (Spec.MLDSA.Ntt.zeta_r 22)));
-assert (unit_fe_post_inv_cross (Seq.index ${orig_re} 20).f_values (Seq.index ${orig_re} 21).f_values (Seq.index ${re} 20).f_values (Seq.index ${re} 21).f_values (mk_i32 (Spec.MLDSA.Ntt.zeta_r 21)));
-assert (unit_fe_post_inv_cross (Seq.index ${orig_re} 22).f_values (Seq.index ${orig_re} 23).f_values (Seq.index ${re} 22).f_values (Seq.index ${re} 23).f_values (mk_i32 (Spec.MLDSA.Ntt.zeta_r 20)));
-assert (unit_fe_post_inv_cross (Seq.index ${orig_re} 24).f_values (Seq.index ${orig_re} 25).f_values (Seq.index ${re} 24).f_values (Seq.index ${re} 25).f_values (mk_i32 (Spec.MLDSA.Ntt.zeta_r 19)));
-assert (unit_fe_post_inv_cross (Seq.index ${orig_re} 26).f_values (Seq.index ${orig_re} 27).f_values (Seq.index ${re} 26).f_values (Seq.index ${re} 27).f_values (mk_i32 (Spec.MLDSA.Ntt.zeta_r 18)));
-assert (unit_fe_post_inv_cross (Seq.index ${orig_re} 28).f_values (Seq.index ${orig_re} 29).f_values (Seq.index ${re} 28).f_values (Seq.index ${re} 29).f_values (mk_i32 (Spec.MLDSA.Ntt.zeta_r 17)));
-assert (unit_fe_post_inv_cross (Seq.index ${orig_re} 30).f_values (Seq.index ${orig_re} 31).f_values (Seq.index ${re} 30).f_values (Seq.index ${re} 31).f_values (mk_i32 (Spec.MLDSA.Ntt.zeta_r 16)));
+assert (unit_fe_post_inv_cross (Seq.index ${orig_re} 0).f_values (Seq.index ${orig_re} 1).f_values (Seq.index ${re} 0).f_values (Seq.index ${re} 1).f_values (mk_i32 (Spec.MLDSA.NttConstants.zeta_r 31)));
+assert (unit_fe_post_inv_cross (Seq.index ${orig_re} 2).f_values (Seq.index ${orig_re} 3).f_values (Seq.index ${re} 2).f_values (Seq.index ${re} 3).f_values (mk_i32 (Spec.MLDSA.NttConstants.zeta_r 30)));
+assert (unit_fe_post_inv_cross (Seq.index ${orig_re} 4).f_values (Seq.index ${orig_re} 5).f_values (Seq.index ${re} 4).f_values (Seq.index ${re} 5).f_values (mk_i32 (Spec.MLDSA.NttConstants.zeta_r 29)));
+assert (unit_fe_post_inv_cross (Seq.index ${orig_re} 6).f_values (Seq.index ${orig_re} 7).f_values (Seq.index ${re} 6).f_values (Seq.index ${re} 7).f_values (mk_i32 (Spec.MLDSA.NttConstants.zeta_r 28)));
+assert (unit_fe_post_inv_cross (Seq.index ${orig_re} 8).f_values (Seq.index ${orig_re} 9).f_values (Seq.index ${re} 8).f_values (Seq.index ${re} 9).f_values (mk_i32 (Spec.MLDSA.NttConstants.zeta_r 27)));
+assert (unit_fe_post_inv_cross (Seq.index ${orig_re} 10).f_values (Seq.index ${orig_re} 11).f_values (Seq.index ${re} 10).f_values (Seq.index ${re} 11).f_values (mk_i32 (Spec.MLDSA.NttConstants.zeta_r 26)));
+assert (unit_fe_post_inv_cross (Seq.index ${orig_re} 12).f_values (Seq.index ${orig_re} 13).f_values (Seq.index ${re} 12).f_values (Seq.index ${re} 13).f_values (mk_i32 (Spec.MLDSA.NttConstants.zeta_r 25)));
+assert (unit_fe_post_inv_cross (Seq.index ${orig_re} 14).f_values (Seq.index ${orig_re} 15).f_values (Seq.index ${re} 14).f_values (Seq.index ${re} 15).f_values (mk_i32 (Spec.MLDSA.NttConstants.zeta_r 24)));
+assert (unit_fe_post_inv_cross (Seq.index ${orig_re} 16).f_values (Seq.index ${orig_re} 17).f_values (Seq.index ${re} 16).f_values (Seq.index ${re} 17).f_values (mk_i32 (Spec.MLDSA.NttConstants.zeta_r 23)));
+assert (unit_fe_post_inv_cross (Seq.index ${orig_re} 18).f_values (Seq.index ${orig_re} 19).f_values (Seq.index ${re} 18).f_values (Seq.index ${re} 19).f_values (mk_i32 (Spec.MLDSA.NttConstants.zeta_r 22)));
+assert (unit_fe_post_inv_cross (Seq.index ${orig_re} 20).f_values (Seq.index ${orig_re} 21).f_values (Seq.index ${re} 20).f_values (Seq.index ${re} 21).f_values (mk_i32 (Spec.MLDSA.NttConstants.zeta_r 21)));
+assert (unit_fe_post_inv_cross (Seq.index ${orig_re} 22).f_values (Seq.index ${orig_re} 23).f_values (Seq.index ${re} 22).f_values (Seq.index ${re} 23).f_values (mk_i32 (Spec.MLDSA.NttConstants.zeta_r 20)));
+assert (unit_fe_post_inv_cross (Seq.index ${orig_re} 24).f_values (Seq.index ${orig_re} 25).f_values (Seq.index ${re} 24).f_values (Seq.index ${re} 25).f_values (mk_i32 (Spec.MLDSA.NttConstants.zeta_r 19)));
+assert (unit_fe_post_inv_cross (Seq.index ${orig_re} 26).f_values (Seq.index ${orig_re} 27).f_values (Seq.index ${re} 26).f_values (Seq.index ${re} 27).f_values (mk_i32 (Spec.MLDSA.NttConstants.zeta_r 18)));
+assert (unit_fe_post_inv_cross (Seq.index ${orig_re} 28).f_values (Seq.index ${orig_re} 29).f_values (Seq.index ${re} 28).f_values (Seq.index ${re} 29).f_values (mk_i32 (Spec.MLDSA.NttConstants.zeta_r 17)));
+assert (unit_fe_post_inv_cross (Seq.index ${orig_re} 30).f_values (Seq.index ${orig_re} 31).f_values (Seq.index ${re} 30).f_values (Seq.index ${re} 31).f_values (mk_i32 (Spec.MLDSA.NttConstants.zeta_r 16)));
 lemma_inv_l3_cross_driver_compose ${orig_re} ${re}
 "#);
 }
@@ -1393,30 +1393,30 @@ fn invert_ntt_at_layer_4(re: &mut [Coefficients; SIMD_UNITS_IN_RING_ELEMENT]) {
     outer_3_plus::<{ (7 * STEP * 2) / COEFFICIENTS_IN_SIMD_UNIT }, STEP_BY, 1826347>(re);
 
     hax_lib::fstar!(r#"
-assert_norm (Spec.MLDSA.Ntt.zeta_r 8 == 1826347);
-assert_norm (Spec.MLDSA.Ntt.zeta_r 9 == 2353451);
-assert_norm (Spec.MLDSA.Ntt.zeta_r 10 == (-359251));
-assert_norm (Spec.MLDSA.Ntt.zeta_r 11 == (-2091905));
-assert_norm (Spec.MLDSA.Ntt.zeta_r 12 == 3119733);
-assert_norm (Spec.MLDSA.Ntt.zeta_r 13 == (-2884855));
-assert_norm (Spec.MLDSA.Ntt.zeta_r 14 == 3111497);
-assert_norm (Spec.MLDSA.Ntt.zeta_r 15 == 2680103);
-assert (unit_fe_post_inv_cross (Seq.index ${orig_re} 0).f_values (Seq.index ${orig_re} 2).f_values (Seq.index ${re} 0).f_values (Seq.index ${re} 2).f_values (mk_i32 (Spec.MLDSA.Ntt.zeta_r 15)));
-assert (unit_fe_post_inv_cross (Seq.index ${orig_re} 1).f_values (Seq.index ${orig_re} 3).f_values (Seq.index ${re} 1).f_values (Seq.index ${re} 3).f_values (mk_i32 (Spec.MLDSA.Ntt.zeta_r 15)));
-assert (unit_fe_post_inv_cross (Seq.index ${orig_re} 4).f_values (Seq.index ${orig_re} 6).f_values (Seq.index ${re} 4).f_values (Seq.index ${re} 6).f_values (mk_i32 (Spec.MLDSA.Ntt.zeta_r 14)));
-assert (unit_fe_post_inv_cross (Seq.index ${orig_re} 5).f_values (Seq.index ${orig_re} 7).f_values (Seq.index ${re} 5).f_values (Seq.index ${re} 7).f_values (mk_i32 (Spec.MLDSA.Ntt.zeta_r 14)));
-assert (unit_fe_post_inv_cross (Seq.index ${orig_re} 8).f_values (Seq.index ${orig_re} 10).f_values (Seq.index ${re} 8).f_values (Seq.index ${re} 10).f_values (mk_i32 (Spec.MLDSA.Ntt.zeta_r 13)));
-assert (unit_fe_post_inv_cross (Seq.index ${orig_re} 9).f_values (Seq.index ${orig_re} 11).f_values (Seq.index ${re} 9).f_values (Seq.index ${re} 11).f_values (mk_i32 (Spec.MLDSA.Ntt.zeta_r 13)));
-assert (unit_fe_post_inv_cross (Seq.index ${orig_re} 12).f_values (Seq.index ${orig_re} 14).f_values (Seq.index ${re} 12).f_values (Seq.index ${re} 14).f_values (mk_i32 (Spec.MLDSA.Ntt.zeta_r 12)));
-assert (unit_fe_post_inv_cross (Seq.index ${orig_re} 13).f_values (Seq.index ${orig_re} 15).f_values (Seq.index ${re} 13).f_values (Seq.index ${re} 15).f_values (mk_i32 (Spec.MLDSA.Ntt.zeta_r 12)));
-assert (unit_fe_post_inv_cross (Seq.index ${orig_re} 16).f_values (Seq.index ${orig_re} 18).f_values (Seq.index ${re} 16).f_values (Seq.index ${re} 18).f_values (mk_i32 (Spec.MLDSA.Ntt.zeta_r 11)));
-assert (unit_fe_post_inv_cross (Seq.index ${orig_re} 17).f_values (Seq.index ${orig_re} 19).f_values (Seq.index ${re} 17).f_values (Seq.index ${re} 19).f_values (mk_i32 (Spec.MLDSA.Ntt.zeta_r 11)));
-assert (unit_fe_post_inv_cross (Seq.index ${orig_re} 20).f_values (Seq.index ${orig_re} 22).f_values (Seq.index ${re} 20).f_values (Seq.index ${re} 22).f_values (mk_i32 (Spec.MLDSA.Ntt.zeta_r 10)));
-assert (unit_fe_post_inv_cross (Seq.index ${orig_re} 21).f_values (Seq.index ${orig_re} 23).f_values (Seq.index ${re} 21).f_values (Seq.index ${re} 23).f_values (mk_i32 (Spec.MLDSA.Ntt.zeta_r 10)));
-assert (unit_fe_post_inv_cross (Seq.index ${orig_re} 24).f_values (Seq.index ${orig_re} 26).f_values (Seq.index ${re} 24).f_values (Seq.index ${re} 26).f_values (mk_i32 (Spec.MLDSA.Ntt.zeta_r 9)));
-assert (unit_fe_post_inv_cross (Seq.index ${orig_re} 25).f_values (Seq.index ${orig_re} 27).f_values (Seq.index ${re} 25).f_values (Seq.index ${re} 27).f_values (mk_i32 (Spec.MLDSA.Ntt.zeta_r 9)));
-assert (unit_fe_post_inv_cross (Seq.index ${orig_re} 28).f_values (Seq.index ${orig_re} 30).f_values (Seq.index ${re} 28).f_values (Seq.index ${re} 30).f_values (mk_i32 (Spec.MLDSA.Ntt.zeta_r 8)));
-assert (unit_fe_post_inv_cross (Seq.index ${orig_re} 29).f_values (Seq.index ${orig_re} 31).f_values (Seq.index ${re} 29).f_values (Seq.index ${re} 31).f_values (mk_i32 (Spec.MLDSA.Ntt.zeta_r 8)));
+assert_norm (Spec.MLDSA.NttConstants.zeta_r 8 == 1826347);
+assert_norm (Spec.MLDSA.NttConstants.zeta_r 9 == 2353451);
+assert_norm (Spec.MLDSA.NttConstants.zeta_r 10 == (-359251));
+assert_norm (Spec.MLDSA.NttConstants.zeta_r 11 == (-2091905));
+assert_norm (Spec.MLDSA.NttConstants.zeta_r 12 == 3119733);
+assert_norm (Spec.MLDSA.NttConstants.zeta_r 13 == (-2884855));
+assert_norm (Spec.MLDSA.NttConstants.zeta_r 14 == 3111497);
+assert_norm (Spec.MLDSA.NttConstants.zeta_r 15 == 2680103);
+assert (unit_fe_post_inv_cross (Seq.index ${orig_re} 0).f_values (Seq.index ${orig_re} 2).f_values (Seq.index ${re} 0).f_values (Seq.index ${re} 2).f_values (mk_i32 (Spec.MLDSA.NttConstants.zeta_r 15)));
+assert (unit_fe_post_inv_cross (Seq.index ${orig_re} 1).f_values (Seq.index ${orig_re} 3).f_values (Seq.index ${re} 1).f_values (Seq.index ${re} 3).f_values (mk_i32 (Spec.MLDSA.NttConstants.zeta_r 15)));
+assert (unit_fe_post_inv_cross (Seq.index ${orig_re} 4).f_values (Seq.index ${orig_re} 6).f_values (Seq.index ${re} 4).f_values (Seq.index ${re} 6).f_values (mk_i32 (Spec.MLDSA.NttConstants.zeta_r 14)));
+assert (unit_fe_post_inv_cross (Seq.index ${orig_re} 5).f_values (Seq.index ${orig_re} 7).f_values (Seq.index ${re} 5).f_values (Seq.index ${re} 7).f_values (mk_i32 (Spec.MLDSA.NttConstants.zeta_r 14)));
+assert (unit_fe_post_inv_cross (Seq.index ${orig_re} 8).f_values (Seq.index ${orig_re} 10).f_values (Seq.index ${re} 8).f_values (Seq.index ${re} 10).f_values (mk_i32 (Spec.MLDSA.NttConstants.zeta_r 13)));
+assert (unit_fe_post_inv_cross (Seq.index ${orig_re} 9).f_values (Seq.index ${orig_re} 11).f_values (Seq.index ${re} 9).f_values (Seq.index ${re} 11).f_values (mk_i32 (Spec.MLDSA.NttConstants.zeta_r 13)));
+assert (unit_fe_post_inv_cross (Seq.index ${orig_re} 12).f_values (Seq.index ${orig_re} 14).f_values (Seq.index ${re} 12).f_values (Seq.index ${re} 14).f_values (mk_i32 (Spec.MLDSA.NttConstants.zeta_r 12)));
+assert (unit_fe_post_inv_cross (Seq.index ${orig_re} 13).f_values (Seq.index ${orig_re} 15).f_values (Seq.index ${re} 13).f_values (Seq.index ${re} 15).f_values (mk_i32 (Spec.MLDSA.NttConstants.zeta_r 12)));
+assert (unit_fe_post_inv_cross (Seq.index ${orig_re} 16).f_values (Seq.index ${orig_re} 18).f_values (Seq.index ${re} 16).f_values (Seq.index ${re} 18).f_values (mk_i32 (Spec.MLDSA.NttConstants.zeta_r 11)));
+assert (unit_fe_post_inv_cross (Seq.index ${orig_re} 17).f_values (Seq.index ${orig_re} 19).f_values (Seq.index ${re} 17).f_values (Seq.index ${re} 19).f_values (mk_i32 (Spec.MLDSA.NttConstants.zeta_r 11)));
+assert (unit_fe_post_inv_cross (Seq.index ${orig_re} 20).f_values (Seq.index ${orig_re} 22).f_values (Seq.index ${re} 20).f_values (Seq.index ${re} 22).f_values (mk_i32 (Spec.MLDSA.NttConstants.zeta_r 10)));
+assert (unit_fe_post_inv_cross (Seq.index ${orig_re} 21).f_values (Seq.index ${orig_re} 23).f_values (Seq.index ${re} 21).f_values (Seq.index ${re} 23).f_values (mk_i32 (Spec.MLDSA.NttConstants.zeta_r 10)));
+assert (unit_fe_post_inv_cross (Seq.index ${orig_re} 24).f_values (Seq.index ${orig_re} 26).f_values (Seq.index ${re} 24).f_values (Seq.index ${re} 26).f_values (mk_i32 (Spec.MLDSA.NttConstants.zeta_r 9)));
+assert (unit_fe_post_inv_cross (Seq.index ${orig_re} 25).f_values (Seq.index ${orig_re} 27).f_values (Seq.index ${re} 25).f_values (Seq.index ${re} 27).f_values (mk_i32 (Spec.MLDSA.NttConstants.zeta_r 9)));
+assert (unit_fe_post_inv_cross (Seq.index ${orig_re} 28).f_values (Seq.index ${orig_re} 30).f_values (Seq.index ${re} 28).f_values (Seq.index ${re} 30).f_values (mk_i32 (Spec.MLDSA.NttConstants.zeta_r 8)));
+assert (unit_fe_post_inv_cross (Seq.index ${orig_re} 29).f_values (Seq.index ${orig_re} 31).f_values (Seq.index ${re} 29).f_values (Seq.index ${re} 31).f_values (mk_i32 (Spec.MLDSA.NttConstants.zeta_r 8)));
 lemma_inv_l4_cross_driver_compose ${orig_re} ${re}
 "#);
 }
@@ -1448,26 +1448,26 @@ fn invert_ntt_at_layer_5(re: &mut [Coefficients; SIMD_UNITS_IN_RING_ELEMENT]) {
     outer_3_plus::<{ (3 * STEP * 2) / COEFFICIENTS_IN_SIMD_UNIT }, STEP_BY, 237124>(re);
 
     hax_lib::fstar!(r#"
-assert_norm (Spec.MLDSA.Ntt.zeta_r 4 == 237124);
-assert_norm (Spec.MLDSA.Ntt.zeta_r 5 == (-777960));
-assert_norm (Spec.MLDSA.Ntt.zeta_r 6 == (-876248));
-assert_norm (Spec.MLDSA.Ntt.zeta_r 7 == 466468);
-assert (unit_fe_post_inv_cross (Seq.index ${orig_re} 0).f_values (Seq.index ${orig_re} 4).f_values (Seq.index ${re} 0).f_values (Seq.index ${re} 4).f_values (mk_i32 (Spec.MLDSA.Ntt.zeta_r 7)));
-assert (unit_fe_post_inv_cross (Seq.index ${orig_re} 1).f_values (Seq.index ${orig_re} 5).f_values (Seq.index ${re} 1).f_values (Seq.index ${re} 5).f_values (mk_i32 (Spec.MLDSA.Ntt.zeta_r 7)));
-assert (unit_fe_post_inv_cross (Seq.index ${orig_re} 2).f_values (Seq.index ${orig_re} 6).f_values (Seq.index ${re} 2).f_values (Seq.index ${re} 6).f_values (mk_i32 (Spec.MLDSA.Ntt.zeta_r 7)));
-assert (unit_fe_post_inv_cross (Seq.index ${orig_re} 3).f_values (Seq.index ${orig_re} 7).f_values (Seq.index ${re} 3).f_values (Seq.index ${re} 7).f_values (mk_i32 (Spec.MLDSA.Ntt.zeta_r 7)));
-assert (unit_fe_post_inv_cross (Seq.index ${orig_re} 8).f_values (Seq.index ${orig_re} 12).f_values (Seq.index ${re} 8).f_values (Seq.index ${re} 12).f_values (mk_i32 (Spec.MLDSA.Ntt.zeta_r 6)));
-assert (unit_fe_post_inv_cross (Seq.index ${orig_re} 9).f_values (Seq.index ${orig_re} 13).f_values (Seq.index ${re} 9).f_values (Seq.index ${re} 13).f_values (mk_i32 (Spec.MLDSA.Ntt.zeta_r 6)));
-assert (unit_fe_post_inv_cross (Seq.index ${orig_re} 10).f_values (Seq.index ${orig_re} 14).f_values (Seq.index ${re} 10).f_values (Seq.index ${re} 14).f_values (mk_i32 (Spec.MLDSA.Ntt.zeta_r 6)));
-assert (unit_fe_post_inv_cross (Seq.index ${orig_re} 11).f_values (Seq.index ${orig_re} 15).f_values (Seq.index ${re} 11).f_values (Seq.index ${re} 15).f_values (mk_i32 (Spec.MLDSA.Ntt.zeta_r 6)));
-assert (unit_fe_post_inv_cross (Seq.index ${orig_re} 16).f_values (Seq.index ${orig_re} 20).f_values (Seq.index ${re} 16).f_values (Seq.index ${re} 20).f_values (mk_i32 (Spec.MLDSA.Ntt.zeta_r 5)));
-assert (unit_fe_post_inv_cross (Seq.index ${orig_re} 17).f_values (Seq.index ${orig_re} 21).f_values (Seq.index ${re} 17).f_values (Seq.index ${re} 21).f_values (mk_i32 (Spec.MLDSA.Ntt.zeta_r 5)));
-assert (unit_fe_post_inv_cross (Seq.index ${orig_re} 18).f_values (Seq.index ${orig_re} 22).f_values (Seq.index ${re} 18).f_values (Seq.index ${re} 22).f_values (mk_i32 (Spec.MLDSA.Ntt.zeta_r 5)));
-assert (unit_fe_post_inv_cross (Seq.index ${orig_re} 19).f_values (Seq.index ${orig_re} 23).f_values (Seq.index ${re} 19).f_values (Seq.index ${re} 23).f_values (mk_i32 (Spec.MLDSA.Ntt.zeta_r 5)));
-assert (unit_fe_post_inv_cross (Seq.index ${orig_re} 24).f_values (Seq.index ${orig_re} 28).f_values (Seq.index ${re} 24).f_values (Seq.index ${re} 28).f_values (mk_i32 (Spec.MLDSA.Ntt.zeta_r 4)));
-assert (unit_fe_post_inv_cross (Seq.index ${orig_re} 25).f_values (Seq.index ${orig_re} 29).f_values (Seq.index ${re} 25).f_values (Seq.index ${re} 29).f_values (mk_i32 (Spec.MLDSA.Ntt.zeta_r 4)));
-assert (unit_fe_post_inv_cross (Seq.index ${orig_re} 26).f_values (Seq.index ${orig_re} 30).f_values (Seq.index ${re} 26).f_values (Seq.index ${re} 30).f_values (mk_i32 (Spec.MLDSA.Ntt.zeta_r 4)));
-assert (unit_fe_post_inv_cross (Seq.index ${orig_re} 27).f_values (Seq.index ${orig_re} 31).f_values (Seq.index ${re} 27).f_values (Seq.index ${re} 31).f_values (mk_i32 (Spec.MLDSA.Ntt.zeta_r 4)));
+assert_norm (Spec.MLDSA.NttConstants.zeta_r 4 == 237124);
+assert_norm (Spec.MLDSA.NttConstants.zeta_r 5 == (-777960));
+assert_norm (Spec.MLDSA.NttConstants.zeta_r 6 == (-876248));
+assert_norm (Spec.MLDSA.NttConstants.zeta_r 7 == 466468);
+assert (unit_fe_post_inv_cross (Seq.index ${orig_re} 0).f_values (Seq.index ${orig_re} 4).f_values (Seq.index ${re} 0).f_values (Seq.index ${re} 4).f_values (mk_i32 (Spec.MLDSA.NttConstants.zeta_r 7)));
+assert (unit_fe_post_inv_cross (Seq.index ${orig_re} 1).f_values (Seq.index ${orig_re} 5).f_values (Seq.index ${re} 1).f_values (Seq.index ${re} 5).f_values (mk_i32 (Spec.MLDSA.NttConstants.zeta_r 7)));
+assert (unit_fe_post_inv_cross (Seq.index ${orig_re} 2).f_values (Seq.index ${orig_re} 6).f_values (Seq.index ${re} 2).f_values (Seq.index ${re} 6).f_values (mk_i32 (Spec.MLDSA.NttConstants.zeta_r 7)));
+assert (unit_fe_post_inv_cross (Seq.index ${orig_re} 3).f_values (Seq.index ${orig_re} 7).f_values (Seq.index ${re} 3).f_values (Seq.index ${re} 7).f_values (mk_i32 (Spec.MLDSA.NttConstants.zeta_r 7)));
+assert (unit_fe_post_inv_cross (Seq.index ${orig_re} 8).f_values (Seq.index ${orig_re} 12).f_values (Seq.index ${re} 8).f_values (Seq.index ${re} 12).f_values (mk_i32 (Spec.MLDSA.NttConstants.zeta_r 6)));
+assert (unit_fe_post_inv_cross (Seq.index ${orig_re} 9).f_values (Seq.index ${orig_re} 13).f_values (Seq.index ${re} 9).f_values (Seq.index ${re} 13).f_values (mk_i32 (Spec.MLDSA.NttConstants.zeta_r 6)));
+assert (unit_fe_post_inv_cross (Seq.index ${orig_re} 10).f_values (Seq.index ${orig_re} 14).f_values (Seq.index ${re} 10).f_values (Seq.index ${re} 14).f_values (mk_i32 (Spec.MLDSA.NttConstants.zeta_r 6)));
+assert (unit_fe_post_inv_cross (Seq.index ${orig_re} 11).f_values (Seq.index ${orig_re} 15).f_values (Seq.index ${re} 11).f_values (Seq.index ${re} 15).f_values (mk_i32 (Spec.MLDSA.NttConstants.zeta_r 6)));
+assert (unit_fe_post_inv_cross (Seq.index ${orig_re} 16).f_values (Seq.index ${orig_re} 20).f_values (Seq.index ${re} 16).f_values (Seq.index ${re} 20).f_values (mk_i32 (Spec.MLDSA.NttConstants.zeta_r 5)));
+assert (unit_fe_post_inv_cross (Seq.index ${orig_re} 17).f_values (Seq.index ${orig_re} 21).f_values (Seq.index ${re} 17).f_values (Seq.index ${re} 21).f_values (mk_i32 (Spec.MLDSA.NttConstants.zeta_r 5)));
+assert (unit_fe_post_inv_cross (Seq.index ${orig_re} 18).f_values (Seq.index ${orig_re} 22).f_values (Seq.index ${re} 18).f_values (Seq.index ${re} 22).f_values (mk_i32 (Spec.MLDSA.NttConstants.zeta_r 5)));
+assert (unit_fe_post_inv_cross (Seq.index ${orig_re} 19).f_values (Seq.index ${orig_re} 23).f_values (Seq.index ${re} 19).f_values (Seq.index ${re} 23).f_values (mk_i32 (Spec.MLDSA.NttConstants.zeta_r 5)));
+assert (unit_fe_post_inv_cross (Seq.index ${orig_re} 24).f_values (Seq.index ${orig_re} 28).f_values (Seq.index ${re} 24).f_values (Seq.index ${re} 28).f_values (mk_i32 (Spec.MLDSA.NttConstants.zeta_r 4)));
+assert (unit_fe_post_inv_cross (Seq.index ${orig_re} 25).f_values (Seq.index ${orig_re} 29).f_values (Seq.index ${re} 25).f_values (Seq.index ${re} 29).f_values (mk_i32 (Spec.MLDSA.NttConstants.zeta_r 4)));
+assert (unit_fe_post_inv_cross (Seq.index ${orig_re} 26).f_values (Seq.index ${orig_re} 30).f_values (Seq.index ${re} 26).f_values (Seq.index ${re} 30).f_values (mk_i32 (Spec.MLDSA.NttConstants.zeta_r 4)));
+assert (unit_fe_post_inv_cross (Seq.index ${orig_re} 27).f_values (Seq.index ${orig_re} 31).f_values (Seq.index ${re} 27).f_values (Seq.index ${re} 31).f_values (mk_i32 (Spec.MLDSA.NttConstants.zeta_r 4)));
 lemma_inv_l5_cross_driver_compose ${orig_re} ${re}
 "#);
 }
@@ -1497,24 +1497,24 @@ fn invert_ntt_at_layer_6(re: &mut [Coefficients; SIMD_UNITS_IN_RING_ELEMENT]) {
     outer_3_plus::<{ (1 * STEP * 2) / COEFFICIENTS_IN_SIMD_UNIT }, STEP_BY, -2608894>(re);
 
     hax_lib::fstar!(r#"
-assert_norm (Spec.MLDSA.Ntt.zeta_r 2 == (-2608894));
-assert_norm (Spec.MLDSA.Ntt.zeta_r 3 == (-518909));
-assert (unit_fe_post_inv_cross (Seq.index ${orig_re} 0).f_values (Seq.index ${orig_re} 8).f_values (Seq.index ${re} 0).f_values (Seq.index ${re} 8).f_values (mk_i32 (Spec.MLDSA.Ntt.zeta_r 3)));
-assert (unit_fe_post_inv_cross (Seq.index ${orig_re} 1).f_values (Seq.index ${orig_re} 9).f_values (Seq.index ${re} 1).f_values (Seq.index ${re} 9).f_values (mk_i32 (Spec.MLDSA.Ntt.zeta_r 3)));
-assert (unit_fe_post_inv_cross (Seq.index ${orig_re} 2).f_values (Seq.index ${orig_re} 10).f_values (Seq.index ${re} 2).f_values (Seq.index ${re} 10).f_values (mk_i32 (Spec.MLDSA.Ntt.zeta_r 3)));
-assert (unit_fe_post_inv_cross (Seq.index ${orig_re} 3).f_values (Seq.index ${orig_re} 11).f_values (Seq.index ${re} 3).f_values (Seq.index ${re} 11).f_values (mk_i32 (Spec.MLDSA.Ntt.zeta_r 3)));
-assert (unit_fe_post_inv_cross (Seq.index ${orig_re} 4).f_values (Seq.index ${orig_re} 12).f_values (Seq.index ${re} 4).f_values (Seq.index ${re} 12).f_values (mk_i32 (Spec.MLDSA.Ntt.zeta_r 3)));
-assert (unit_fe_post_inv_cross (Seq.index ${orig_re} 5).f_values (Seq.index ${orig_re} 13).f_values (Seq.index ${re} 5).f_values (Seq.index ${re} 13).f_values (mk_i32 (Spec.MLDSA.Ntt.zeta_r 3)));
-assert (unit_fe_post_inv_cross (Seq.index ${orig_re} 6).f_values (Seq.index ${orig_re} 14).f_values (Seq.index ${re} 6).f_values (Seq.index ${re} 14).f_values (mk_i32 (Spec.MLDSA.Ntt.zeta_r 3)));
-assert (unit_fe_post_inv_cross (Seq.index ${orig_re} 7).f_values (Seq.index ${orig_re} 15).f_values (Seq.index ${re} 7).f_values (Seq.index ${re} 15).f_values (mk_i32 (Spec.MLDSA.Ntt.zeta_r 3)));
-assert (unit_fe_post_inv_cross (Seq.index ${orig_re} 16).f_values (Seq.index ${orig_re} 24).f_values (Seq.index ${re} 16).f_values (Seq.index ${re} 24).f_values (mk_i32 (Spec.MLDSA.Ntt.zeta_r 2)));
-assert (unit_fe_post_inv_cross (Seq.index ${orig_re} 17).f_values (Seq.index ${orig_re} 25).f_values (Seq.index ${re} 17).f_values (Seq.index ${re} 25).f_values (mk_i32 (Spec.MLDSA.Ntt.zeta_r 2)));
-assert (unit_fe_post_inv_cross (Seq.index ${orig_re} 18).f_values (Seq.index ${orig_re} 26).f_values (Seq.index ${re} 18).f_values (Seq.index ${re} 26).f_values (mk_i32 (Spec.MLDSA.Ntt.zeta_r 2)));
-assert (unit_fe_post_inv_cross (Seq.index ${orig_re} 19).f_values (Seq.index ${orig_re} 27).f_values (Seq.index ${re} 19).f_values (Seq.index ${re} 27).f_values (mk_i32 (Spec.MLDSA.Ntt.zeta_r 2)));
-assert (unit_fe_post_inv_cross (Seq.index ${orig_re} 20).f_values (Seq.index ${orig_re} 28).f_values (Seq.index ${re} 20).f_values (Seq.index ${re} 28).f_values (mk_i32 (Spec.MLDSA.Ntt.zeta_r 2)));
-assert (unit_fe_post_inv_cross (Seq.index ${orig_re} 21).f_values (Seq.index ${orig_re} 29).f_values (Seq.index ${re} 21).f_values (Seq.index ${re} 29).f_values (mk_i32 (Spec.MLDSA.Ntt.zeta_r 2)));
-assert (unit_fe_post_inv_cross (Seq.index ${orig_re} 22).f_values (Seq.index ${orig_re} 30).f_values (Seq.index ${re} 22).f_values (Seq.index ${re} 30).f_values (mk_i32 (Spec.MLDSA.Ntt.zeta_r 2)));
-assert (unit_fe_post_inv_cross (Seq.index ${orig_re} 23).f_values (Seq.index ${orig_re} 31).f_values (Seq.index ${re} 23).f_values (Seq.index ${re} 31).f_values (mk_i32 (Spec.MLDSA.Ntt.zeta_r 2)));
+assert_norm (Spec.MLDSA.NttConstants.zeta_r 2 == (-2608894));
+assert_norm (Spec.MLDSA.NttConstants.zeta_r 3 == (-518909));
+assert (unit_fe_post_inv_cross (Seq.index ${orig_re} 0).f_values (Seq.index ${orig_re} 8).f_values (Seq.index ${re} 0).f_values (Seq.index ${re} 8).f_values (mk_i32 (Spec.MLDSA.NttConstants.zeta_r 3)));
+assert (unit_fe_post_inv_cross (Seq.index ${orig_re} 1).f_values (Seq.index ${orig_re} 9).f_values (Seq.index ${re} 1).f_values (Seq.index ${re} 9).f_values (mk_i32 (Spec.MLDSA.NttConstants.zeta_r 3)));
+assert (unit_fe_post_inv_cross (Seq.index ${orig_re} 2).f_values (Seq.index ${orig_re} 10).f_values (Seq.index ${re} 2).f_values (Seq.index ${re} 10).f_values (mk_i32 (Spec.MLDSA.NttConstants.zeta_r 3)));
+assert (unit_fe_post_inv_cross (Seq.index ${orig_re} 3).f_values (Seq.index ${orig_re} 11).f_values (Seq.index ${re} 3).f_values (Seq.index ${re} 11).f_values (mk_i32 (Spec.MLDSA.NttConstants.zeta_r 3)));
+assert (unit_fe_post_inv_cross (Seq.index ${orig_re} 4).f_values (Seq.index ${orig_re} 12).f_values (Seq.index ${re} 4).f_values (Seq.index ${re} 12).f_values (mk_i32 (Spec.MLDSA.NttConstants.zeta_r 3)));
+assert (unit_fe_post_inv_cross (Seq.index ${orig_re} 5).f_values (Seq.index ${orig_re} 13).f_values (Seq.index ${re} 5).f_values (Seq.index ${re} 13).f_values (mk_i32 (Spec.MLDSA.NttConstants.zeta_r 3)));
+assert (unit_fe_post_inv_cross (Seq.index ${orig_re} 6).f_values (Seq.index ${orig_re} 14).f_values (Seq.index ${re} 6).f_values (Seq.index ${re} 14).f_values (mk_i32 (Spec.MLDSA.NttConstants.zeta_r 3)));
+assert (unit_fe_post_inv_cross (Seq.index ${orig_re} 7).f_values (Seq.index ${orig_re} 15).f_values (Seq.index ${re} 7).f_values (Seq.index ${re} 15).f_values (mk_i32 (Spec.MLDSA.NttConstants.zeta_r 3)));
+assert (unit_fe_post_inv_cross (Seq.index ${orig_re} 16).f_values (Seq.index ${orig_re} 24).f_values (Seq.index ${re} 16).f_values (Seq.index ${re} 24).f_values (mk_i32 (Spec.MLDSA.NttConstants.zeta_r 2)));
+assert (unit_fe_post_inv_cross (Seq.index ${orig_re} 17).f_values (Seq.index ${orig_re} 25).f_values (Seq.index ${re} 17).f_values (Seq.index ${re} 25).f_values (mk_i32 (Spec.MLDSA.NttConstants.zeta_r 2)));
+assert (unit_fe_post_inv_cross (Seq.index ${orig_re} 18).f_values (Seq.index ${orig_re} 26).f_values (Seq.index ${re} 18).f_values (Seq.index ${re} 26).f_values (mk_i32 (Spec.MLDSA.NttConstants.zeta_r 2)));
+assert (unit_fe_post_inv_cross (Seq.index ${orig_re} 19).f_values (Seq.index ${orig_re} 27).f_values (Seq.index ${re} 19).f_values (Seq.index ${re} 27).f_values (mk_i32 (Spec.MLDSA.NttConstants.zeta_r 2)));
+assert (unit_fe_post_inv_cross (Seq.index ${orig_re} 20).f_values (Seq.index ${orig_re} 28).f_values (Seq.index ${re} 20).f_values (Seq.index ${re} 28).f_values (mk_i32 (Spec.MLDSA.NttConstants.zeta_r 2)));
+assert (unit_fe_post_inv_cross (Seq.index ${orig_re} 21).f_values (Seq.index ${orig_re} 29).f_values (Seq.index ${re} 21).f_values (Seq.index ${re} 29).f_values (mk_i32 (Spec.MLDSA.NttConstants.zeta_r 2)));
+assert (unit_fe_post_inv_cross (Seq.index ${orig_re} 22).f_values (Seq.index ${orig_re} 30).f_values (Seq.index ${re} 22).f_values (Seq.index ${re} 30).f_values (mk_i32 (Spec.MLDSA.NttConstants.zeta_r 2)));
+assert (unit_fe_post_inv_cross (Seq.index ${orig_re} 23).f_values (Seq.index ${orig_re} 31).f_values (Seq.index ${re} 23).f_values (Seq.index ${re} 31).f_values (mk_i32 (Spec.MLDSA.NttConstants.zeta_r 2)));
 lemma_inv_l6_cross_driver_compose ${orig_re} ${re}
 "#);
 }
@@ -1543,23 +1543,23 @@ fn invert_ntt_at_layer_7(re: &mut [Coefficients; SIMD_UNITS_IN_RING_ELEMENT]) {
     outer_3_plus::<{ (0 * STEP * 2) / COEFFICIENTS_IN_SIMD_UNIT }, STEP_BY, 25847>(re);
 
     hax_lib::fstar!(r#"
-assert_norm (Spec.MLDSA.Ntt.zeta_r 1 == 25847);
-assert (unit_fe_post_inv_cross (Seq.index ${orig_re} 0).f_values (Seq.index ${orig_re} 16).f_values (Seq.index ${re} 0).f_values (Seq.index ${re} 16).f_values (mk_i32 (Spec.MLDSA.Ntt.zeta_r 1)));
-assert (unit_fe_post_inv_cross (Seq.index ${orig_re} 1).f_values (Seq.index ${orig_re} 17).f_values (Seq.index ${re} 1).f_values (Seq.index ${re} 17).f_values (mk_i32 (Spec.MLDSA.Ntt.zeta_r 1)));
-assert (unit_fe_post_inv_cross (Seq.index ${orig_re} 2).f_values (Seq.index ${orig_re} 18).f_values (Seq.index ${re} 2).f_values (Seq.index ${re} 18).f_values (mk_i32 (Spec.MLDSA.Ntt.zeta_r 1)));
-assert (unit_fe_post_inv_cross (Seq.index ${orig_re} 3).f_values (Seq.index ${orig_re} 19).f_values (Seq.index ${re} 3).f_values (Seq.index ${re} 19).f_values (mk_i32 (Spec.MLDSA.Ntt.zeta_r 1)));
-assert (unit_fe_post_inv_cross (Seq.index ${orig_re} 4).f_values (Seq.index ${orig_re} 20).f_values (Seq.index ${re} 4).f_values (Seq.index ${re} 20).f_values (mk_i32 (Spec.MLDSA.Ntt.zeta_r 1)));
-assert (unit_fe_post_inv_cross (Seq.index ${orig_re} 5).f_values (Seq.index ${orig_re} 21).f_values (Seq.index ${re} 5).f_values (Seq.index ${re} 21).f_values (mk_i32 (Spec.MLDSA.Ntt.zeta_r 1)));
-assert (unit_fe_post_inv_cross (Seq.index ${orig_re} 6).f_values (Seq.index ${orig_re} 22).f_values (Seq.index ${re} 6).f_values (Seq.index ${re} 22).f_values (mk_i32 (Spec.MLDSA.Ntt.zeta_r 1)));
-assert (unit_fe_post_inv_cross (Seq.index ${orig_re} 7).f_values (Seq.index ${orig_re} 23).f_values (Seq.index ${re} 7).f_values (Seq.index ${re} 23).f_values (mk_i32 (Spec.MLDSA.Ntt.zeta_r 1)));
-assert (unit_fe_post_inv_cross (Seq.index ${orig_re} 8).f_values (Seq.index ${orig_re} 24).f_values (Seq.index ${re} 8).f_values (Seq.index ${re} 24).f_values (mk_i32 (Spec.MLDSA.Ntt.zeta_r 1)));
-assert (unit_fe_post_inv_cross (Seq.index ${orig_re} 9).f_values (Seq.index ${orig_re} 25).f_values (Seq.index ${re} 9).f_values (Seq.index ${re} 25).f_values (mk_i32 (Spec.MLDSA.Ntt.zeta_r 1)));
-assert (unit_fe_post_inv_cross (Seq.index ${orig_re} 10).f_values (Seq.index ${orig_re} 26).f_values (Seq.index ${re} 10).f_values (Seq.index ${re} 26).f_values (mk_i32 (Spec.MLDSA.Ntt.zeta_r 1)));
-assert (unit_fe_post_inv_cross (Seq.index ${orig_re} 11).f_values (Seq.index ${orig_re} 27).f_values (Seq.index ${re} 11).f_values (Seq.index ${re} 27).f_values (mk_i32 (Spec.MLDSA.Ntt.zeta_r 1)));
-assert (unit_fe_post_inv_cross (Seq.index ${orig_re} 12).f_values (Seq.index ${orig_re} 28).f_values (Seq.index ${re} 12).f_values (Seq.index ${re} 28).f_values (mk_i32 (Spec.MLDSA.Ntt.zeta_r 1)));
-assert (unit_fe_post_inv_cross (Seq.index ${orig_re} 13).f_values (Seq.index ${orig_re} 29).f_values (Seq.index ${re} 13).f_values (Seq.index ${re} 29).f_values (mk_i32 (Spec.MLDSA.Ntt.zeta_r 1)));
-assert (unit_fe_post_inv_cross (Seq.index ${orig_re} 14).f_values (Seq.index ${orig_re} 30).f_values (Seq.index ${re} 14).f_values (Seq.index ${re} 30).f_values (mk_i32 (Spec.MLDSA.Ntt.zeta_r 1)));
-assert (unit_fe_post_inv_cross (Seq.index ${orig_re} 15).f_values (Seq.index ${orig_re} 31).f_values (Seq.index ${re} 15).f_values (Seq.index ${re} 31).f_values (mk_i32 (Spec.MLDSA.Ntt.zeta_r 1)));
+assert_norm (Spec.MLDSA.NttConstants.zeta_r 1 == 25847);
+assert (unit_fe_post_inv_cross (Seq.index ${orig_re} 0).f_values (Seq.index ${orig_re} 16).f_values (Seq.index ${re} 0).f_values (Seq.index ${re} 16).f_values (mk_i32 (Spec.MLDSA.NttConstants.zeta_r 1)));
+assert (unit_fe_post_inv_cross (Seq.index ${orig_re} 1).f_values (Seq.index ${orig_re} 17).f_values (Seq.index ${re} 1).f_values (Seq.index ${re} 17).f_values (mk_i32 (Spec.MLDSA.NttConstants.zeta_r 1)));
+assert (unit_fe_post_inv_cross (Seq.index ${orig_re} 2).f_values (Seq.index ${orig_re} 18).f_values (Seq.index ${re} 2).f_values (Seq.index ${re} 18).f_values (mk_i32 (Spec.MLDSA.NttConstants.zeta_r 1)));
+assert (unit_fe_post_inv_cross (Seq.index ${orig_re} 3).f_values (Seq.index ${orig_re} 19).f_values (Seq.index ${re} 3).f_values (Seq.index ${re} 19).f_values (mk_i32 (Spec.MLDSA.NttConstants.zeta_r 1)));
+assert (unit_fe_post_inv_cross (Seq.index ${orig_re} 4).f_values (Seq.index ${orig_re} 20).f_values (Seq.index ${re} 4).f_values (Seq.index ${re} 20).f_values (mk_i32 (Spec.MLDSA.NttConstants.zeta_r 1)));
+assert (unit_fe_post_inv_cross (Seq.index ${orig_re} 5).f_values (Seq.index ${orig_re} 21).f_values (Seq.index ${re} 5).f_values (Seq.index ${re} 21).f_values (mk_i32 (Spec.MLDSA.NttConstants.zeta_r 1)));
+assert (unit_fe_post_inv_cross (Seq.index ${orig_re} 6).f_values (Seq.index ${orig_re} 22).f_values (Seq.index ${re} 6).f_values (Seq.index ${re} 22).f_values (mk_i32 (Spec.MLDSA.NttConstants.zeta_r 1)));
+assert (unit_fe_post_inv_cross (Seq.index ${orig_re} 7).f_values (Seq.index ${orig_re} 23).f_values (Seq.index ${re} 7).f_values (Seq.index ${re} 23).f_values (mk_i32 (Spec.MLDSA.NttConstants.zeta_r 1)));
+assert (unit_fe_post_inv_cross (Seq.index ${orig_re} 8).f_values (Seq.index ${orig_re} 24).f_values (Seq.index ${re} 8).f_values (Seq.index ${re} 24).f_values (mk_i32 (Spec.MLDSA.NttConstants.zeta_r 1)));
+assert (unit_fe_post_inv_cross (Seq.index ${orig_re} 9).f_values (Seq.index ${orig_re} 25).f_values (Seq.index ${re} 9).f_values (Seq.index ${re} 25).f_values (mk_i32 (Spec.MLDSA.NttConstants.zeta_r 1)));
+assert (unit_fe_post_inv_cross (Seq.index ${orig_re} 10).f_values (Seq.index ${orig_re} 26).f_values (Seq.index ${re} 10).f_values (Seq.index ${re} 26).f_values (mk_i32 (Spec.MLDSA.NttConstants.zeta_r 1)));
+assert (unit_fe_post_inv_cross (Seq.index ${orig_re} 11).f_values (Seq.index ${orig_re} 27).f_values (Seq.index ${re} 11).f_values (Seq.index ${re} 27).f_values (mk_i32 (Spec.MLDSA.NttConstants.zeta_r 1)));
+assert (unit_fe_post_inv_cross (Seq.index ${orig_re} 12).f_values (Seq.index ${orig_re} 28).f_values (Seq.index ${re} 12).f_values (Seq.index ${re} 28).f_values (mk_i32 (Spec.MLDSA.NttConstants.zeta_r 1)));
+assert (unit_fe_post_inv_cross (Seq.index ${orig_re} 13).f_values (Seq.index ${orig_re} 29).f_values (Seq.index ${re} 13).f_values (Seq.index ${re} 29).f_values (mk_i32 (Spec.MLDSA.NttConstants.zeta_r 1)));
+assert (unit_fe_post_inv_cross (Seq.index ${orig_re} 14).f_values (Seq.index ${orig_re} 30).f_values (Seq.index ${re} 14).f_values (Seq.index ${re} 30).f_values (mk_i32 (Spec.MLDSA.NttConstants.zeta_r 1)));
+assert (unit_fe_post_inv_cross (Seq.index ${orig_re} 15).f_values (Seq.index ${orig_re} 31).f_values (Seq.index ${re} 15).f_values (Seq.index ${re} 31).f_values (mk_i32 (Spec.MLDSA.NttConstants.zeta_r 1)));
 lemma_inv_l7_cross_driver_compose ${orig_re} ${re}
 "#);
 }

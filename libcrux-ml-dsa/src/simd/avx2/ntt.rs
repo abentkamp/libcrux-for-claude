@@ -5,7 +5,7 @@ use libcrux_intrinsics::avx2::*;
 
 // Compute (a,b) ↦ (a + ζb, a - ζb) at layer 0 for 2 SIMD Units in one go.
 #[inline(always)]
-#[hax_lib::fstar::before(r"open Spec.MLDSA.Ntt")]
+#[hax_lib::fstar::before(r"open Spec.MLDSA.NttConstants")]
 #[hax_lib::fstar::before(r"open Spec.Intrinsics")]
 #[hax_lib::fstar::before(
     r#"

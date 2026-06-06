@@ -35,7 +35,7 @@ pub(crate) fn invert_ntt_montgomery(re: &mut AVX2RingElement) {
 }
 
 #[inline(always)]
-#[hax_lib::fstar::before(r"open Spec.MLDSA.Ntt")]
+#[hax_lib::fstar::before(r"open Spec.MLDSA.NttConstants")]
 #[hax_lib::fstar::before(r"open Spec.Intrinsics")]
 #[hax_lib::fstar::before(r"open Spec.Utils")]
 #[hax_lib::fstar::before(r#"[@@ "opaque_to_smt"]"#)]
