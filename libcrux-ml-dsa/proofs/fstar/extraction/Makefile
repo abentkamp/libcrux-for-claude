@@ -51,3 +51,14 @@ FSTAR_INCLUDE_DIRS_EXTRA += ../spec \
 ENABLE_HINTS = --use_hints --record_hints
 
 include $(shell git rev-parse --show-toplevel)/fstar-helpers/Makefile.base
+
+# =====================================================================
+# Hand-written AVX2 forward-NTT commute theory (committed under
+# specs/ml-dsa/proofs/fstar/commute/, on the include path above).
+# Avx2NttTheory carries a .fsti, so consumers depend only on its
+# .fsti.checked — `make verify` would NOT verify its heavy .fst proof.
+# Force-gate both .fst modules here so CI re-checks them cold.
+# (Avx2NttCompose has no .fsti; it is pulled in transitively, but listing
+# it is explicit and harmless.)
+# =====================================================================
+verify: $(CACHE_DIR)/Avx2NttTheory.fst.checked $(CACHE_DIR)/Avx2NttCompose.fst.checked
