@@ -711,8 +711,14 @@ impl Operations for Coefficients {
             (Libcrux_ml_dsa.Simd.Traits.f_repr (Seq.index ${simd_units}_future i)))
     "#))]
     fn invert_ntt_montgomery(simd_units: &mut [Coefficients; SIMD_UNITS_IN_RING_ELEMENT]) {
-        hax_lib::fstar!("admit ()");
-        invntt::invert_ntt_montgomery(simd_units)
+        // Bridge the free fn's `is_i32b_polynomial 4211177` post to the trait post
+        // `forall32 ... is_i32b_array_opaque 4211177 (f_repr ...)`.  is_i32b_polynomial
+        // is opaque; reveal it, then f_repr c == c.f_values (defeq).  Mirror of `ntt`.
+        invntt::invert_ntt_montgomery(simd_units);
+        hax_lib::fstar!(
+            r#"reveal_opaque (`%Libcrux_ml_dsa.Simd.Portable.Ntt.is_i32b_polynomial)
+                 (Libcrux_ml_dsa.Simd.Portable.Ntt.is_i32b_polynomial 4211177 ${simd_units})"#
+        );
     }
 
     #[requires(fstar!(r#"

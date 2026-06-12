@@ -1630,6 +1630,53 @@ let chunk_scaled (orig_chunk cur_chunk : t_Array i32 (mk_usize 8)) : Type0 =
   forall (l:nat). l < 8 ==>
     (v (Seq.index cur_chunk l)) % 8380417 == (16382 * v (Seq.index orig_chunk l)) % 8380417
 
+#push-options "--fuel 0 --ifuel 1 --z3rlimit 100 --z3refresh"
+(* TIGHT per-lane bound for the final scale-back multiply.  The inverse-NTT
+   layers leave each lane bounded by 256*FIELD_MAX; the
+   `montgomery_multiply_by_constant(_, 41978)` then reduces it to the centered
+   bound 4211177 = q/2 + ceil(256*FIELD_MAX*41978/2^32) via
+   `Spec.MLDSA.Math.lemma_mont_red_bound_256_field_max_times_41978`.  Mirror of
+   the AVX2 `lemma_mont_mul_tight_bound_256`. *)
+let lemma_mont_mul_tight_bound_256 (x c: i32)
+    : Lemma
+        (requires Spec.Utils.is_i32b (256 * 8380416) x /\ v c == 41978)
+        (ensures Spec.Utils.is_i32b 4211177 (Spec.MLDSA.Math.mont_mul x c))
+  = Spec.Intrinsics.reveal_opaque_arithmetic_ops #i32_inttype;
+    Spec.Intrinsics.reveal_opaque_arithmetic_ops #i64_inttype;
+    Spec.Intrinsics.reveal_opaque_cast_ops #i32_inttype #i64_inttype;
+    reveal_opaque (`%Spec.MLDSA.Math.i32_mul) (Spec.MLDSA.Math.i32_mul);
+    let prod : int = v x * v c in
+    assert_norm ((256 * 8380416) * 41978 < pow2 63);
+    Spec.Utils.lemma_range_at_percent (v x) (pow2 64);
+    Spec.Utils.lemma_range_at_percent (v c) (pow2 64);
+    let cast_x : i64 = cast x <: i64 in
+    let cast_y : i64 = cast c <: i64 in
+    assert (v cast_x == v x /\ v cast_y == v c);
+    let value : i64 = Spec.MLDSA.Math.i32_mul x c in
+    Spec.Utils.lemma_range_at_percent prod (pow2 64);
+    assert (v value == prod);
+    FStar.Math.Lemmas.lemma_abs_mul (v x) (v c);
+    assert (Spec.Utils.is_i64b (256 * 8380416 * 41978) value);
+    Spec.MLDSA.Math.lemma_mont_red_bound_256_field_max_times_41978 value
+#pop-options
+
+#push-options "--fuel 0 --ifuel 1 --z3rlimit 100 --z3refresh"
+(* Lift the per-lane tight bound to a whole chunk: from the 256*FIELD_MAX input
+   bound and the per-lane mont_mul-by-41978 equality (montgomery_multiply_by_constant's
+   post), each output lane is bounded by 4211177. *)
+let lemma_scale_chunk_tight_bound (orig_chunk cur_chunk : t_Array i32 (mk_usize 8)) : Lemma
+  (requires
+    Spec.Utils.is_i32b_array_opaque (256 * v Libcrux_ml_dsa.Simd.Traits.Specs.v_FIELD_MAX) orig_chunk /\
+    (forall (l:nat). l < 8 ==>
+       Seq.index cur_chunk l == Spec.MLDSA.Math.mont_mul (Seq.index orig_chunk l) (mk_i32 41978)))
+  (ensures Spec.Utils.is_i32b_array_opaque 4211177 cur_chunk)
+  = assert_norm (v Libcrux_ml_dsa.Simd.Traits.Specs.v_FIELD_MAX == 8380416);
+    reveal_opaque (`%Spec.Utils.is_i32b_array_opaque) (Spec.Utils.is_i32b_array_opaque);
+    let aux (l:nat{l<8}) : Lemma (Spec.Utils.is_i32b 4211177 (Seq.index cur_chunk l)) =
+      lemma_mont_mul_tight_bound_256 (Seq.index orig_chunk l) (mk_i32 41978)
+    in Classical.forall_intro aux
+#pop-options
+
 #push-options "--fuel 0 --ifuel 1 --z3rlimit 100"
 (* establish the opaque atom from montgomery_multiply_by_constant's mod_q post *)
 let lemma_establish_chunk_scaled (ci co : t_Array i32 (mk_usize 8)) : Lemma
@@ -1673,7 +1720,7 @@ let lemma_scale_driver
     Libcrux_ml_dsa.Simd.Portable.Ntt.is_i32b_polynomial (256 * v $FIELD_MAX) ${re}
 "#))]
 #[hax_lib::ensures(|_| fstar!(r#"
-    Libcrux_ml_dsa.Simd.Portable.Ntt.is_i32b_polynomial (v $FIELD_MAX) ${re}_future /\
+    Libcrux_ml_dsa.Simd.Portable.Ntt.is_i32b_polynomial 4211177 ${re}_future /\
     (let in_flat = Hacspec_ml_dsa.Commute.Chunk.simd_units_to_array (Libcrux_ml_dsa.Simd.Portable.Ntt.chunks_of_re ${re}) in
      let out_flat = Hacspec_ml_dsa.Commute.Chunk.simd_units_to_array (Libcrux_ml_dsa.Simd.Portable.Ntt.chunks_of_re ${re}_future) in
      forall (j:nat). j < 256 ==>
@@ -1688,7 +1735,7 @@ fn scale_montgomery(re: &mut [Coefficients; SIMD_UNITS_IN_RING_ELEMENT]) {
             r#"
             (forall (k:nat).
               k < v $i ==>
-              Spec.Utils.is_i32b_array_opaque (v $FIELD_MAX)
+              Spec.Utils.is_i32b_array_opaque 4211177
                 (Seq.index $re k).f_values /\
               chunk_scaled (Seq.index ${orig} k).f_values (Seq.index $re k).f_values) /\
             (forall (k:nat).
@@ -1704,11 +1751,16 @@ fn scale_montgomery(re: &mut [Coefficients; SIMD_UNITS_IN_RING_ELEMENT]) {
         // - Divide the elements by 256 and
         // - Convert the elements form montgomery domain to the standard domain.
         arithmetic::montgomery_multiply_by_constant(&mut re[i], 41_978);
+        // Tight 4211177 output bound: the input chunk orig[i] is bounded by
+        // 256*FIELD_MAX (k>=i invariant clause) and montgomery's per-lane post
+        // gives re[i] = mont_mul(orig[i], 41978); the tight-bound lemma reduces
+        // 256*FIELD_MAX to the centered 4211177.
+        hax_lib::fstar!(r#"lemma_scale_chunk_tight_bound (Seq.index ${orig} (v $i)).f_values (Seq.index $re (v $i)).f_values"#);
         // montgomery's per-lane (Spec.MLDSA.Math.mod_q ...) post -> the opaque
         // chunk_scaled atom (input chunk is orig[i] by the k>=i clause).
         hax_lib::fstar!(r#"lemma_establish_chunk_scaled (Seq.index ${orig} (v $i)).f_values (Seq.index $re (v $i)).f_values"#);
     }
-    hax_lib::fstar!(r#"reveal_opaque (`%Libcrux_ml_dsa.Simd.Portable.Ntt.is_i32b_polynomial) (Libcrux_ml_dsa.Simd.Portable.Ntt.is_i32b_polynomial (v $FIELD_MAX) ${re})"#);
+    hax_lib::fstar!(r#"reveal_opaque (`%Libcrux_ml_dsa.Simd.Portable.Ntt.is_i32b_polynomial) (Libcrux_ml_dsa.Simd.Portable.Ntt.is_i32b_polynomial 4211177 ${re})"#);
     // Lift the per-chunk 16382-scaling (loop post) to the flat-poly view.
     hax_lib::fstar!(r#"lemma_scale_driver ${orig} ${re}"#);
 }
@@ -2250,7 +2302,7 @@ let lemma_invert_top (s0flat s8flat refut : t_Array i32 (mk_usize 256)) : Lemma
     Libcrux_ml_dsa.Simd.Portable.Ntt.is_i32b_polynomial (v $FIELD_MAX) ${re}
 "#))]
 #[hax_lib::ensures(|_| fstar!(r#"
-    Libcrux_ml_dsa.Simd.Portable.Ntt.is_i32b_polynomial (v $FIELD_MAX) ${re}_future /\
+    Libcrux_ml_dsa.Simd.Portable.Ntt.is_i32b_polynomial 4211177 ${re}_future /\
     (let in_flat = Hacspec_ml_dsa.Commute.Chunk.simd_units_to_array (Libcrux_ml_dsa.Simd.Portable.Ntt.chunks_of_re ${re}) in
      let out_flat = Hacspec_ml_dsa.Commute.Chunk.simd_units_to_array (Libcrux_ml_dsa.Simd.Portable.Ntt.chunks_of_re ${re}_future) in
      forall (i: nat). i < 256 ==>
