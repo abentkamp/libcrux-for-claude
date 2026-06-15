@@ -145,12 +145,6 @@ impl Xof<168> for CShake128 {
         self.state.absorb(&[input]);
     }
 
-    /// CShake128 absorb final
-    // fn absorb_finalize(&mut self, input: &[u8], out: &mut [u8]) {
-    //     self.state.absorb_final::<0x4u8>(&[input]);
-    //     self.state.squeeze(out);
-    // }
-
     #[hax_lib::requires(keccak_xof_state_inv(168, self.state.buf_len))]
     #[hax_lib::ensures(|_| keccak_xof_state_inv(168, future(self).state.buf_len))]
     fn absorb_final(&mut self, input: &[u8]) {
@@ -219,12 +213,6 @@ impl Xof<136> for CShake256 {
     fn absorb(&mut self, input: &[u8]) {
         self.state.absorb(&[input]);
     }
-
-    // /// CShake256 absorb final
-    // pub fn absorb_finalize(&mut self, input: &[u8], out: &mut [u8]) {
-    //     self.state.absorb_final::<0x4u8>(&[input]);
-    //     self.state.squeeze(out);
-    // }
 
     #[hax_lib::requires(keccak_xof_state_inv(136, self.state.buf_len))]
     #[hax_lib::ensures(|_| keccak_xof_state_inv(136, future(self).state.buf_len))]
