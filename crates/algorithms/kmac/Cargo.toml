@@ -18,4 +18,4 @@ hax-lib.workspace = true
 libcrux-sha3.workspace = true
 
 [dev-dependencies]
-libcrux-kats = { path = "../../testing/kats", features = ["kmac"] }
+libcrux-kats = { workspace = true, features = ["kmac"] }
