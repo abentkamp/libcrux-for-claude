@@ -84,6 +84,32 @@ let lemma_ntt_func_post_intro
           (v (Seq.index (Hacspec_ml_dsa.Ntt.ntt xpre) j)) % 8380417))
       (ensures ntt_func_post pre post)
   = reveal_opaque (`%ntt_func_post) (ntt_func_post pre post)
+
+[@@ "opaque_to_smt"]
+let invert_func_post
+      (#v_SIMDUnit: Type0)
+      (#[FStar.Tactics.Typeclasses.tcresolve ()] i1: t_Repr v_SIMDUnit)
+      (pre post: t_Array v_SIMDUnit (mk_usize 32))
+    : Type0
+  = (let in_flat = ntt_poly_view pre in
+     let out_flat = ntt_poly_view post in
+     forall (j: nat). j < 256 ==>
+       (v (Seq.index out_flat j)) % 8380417 ==
+       (v (Seq.index (Spec.MLDSA.Math.to_mont (Hacspec_ml_dsa.Ntt.intt in_flat)) j)) % 8380417)
+
+let lemma_invert_func_post_intro
+      (#v_SIMDUnit: Type0)
+      (#[FStar.Tactics.Typeclasses.tcresolve ()] i1: t_Repr v_SIMDUnit)
+      (pre post: t_Array v_SIMDUnit (mk_usize 32))
+      (xpre xpost: t_Array i32 (mk_usize 256))
+    : Lemma
+      (requires
+        ntt_poly_view pre == xpre /\ ntt_poly_view post == xpost /\
+        (forall (j: nat). j < 256 ==>
+          (v (Seq.index xpost j)) % 8380417 ==
+          (v (Seq.index (Spec.MLDSA.Math.to_mont (Hacspec_ml_dsa.Ntt.intt xpre)) j)) % 8380417))
+      (ensures invert_func_post pre post)
+  = reveal_opaque (`%invert_func_post) (invert_func_post pre post)
 "#))]
 #[hax_lib::attributes]
 pub(crate) trait Operations: Copy + Clone + Repr {
@@ -430,7 +456,8 @@ pub(crate) trait Operations: Copy + Clone + Repr {
     #[hax_lib::ensures(|_| fstar!(r#"
         Spec.Utils.forall32 (fun (i: nat{i < 32}) ->
             Spec.Utils.is_i32b_array_opaque 4211177
-            (f_repr (Seq.index ${simd_units}_future i)))
+            (f_repr (Seq.index ${simd_units}_future i))) /\
+        Libcrux_ml_dsa.Simd.Traits.invert_func_post ${simd_units} ${simd_units}_future
     "#))]
     fn invert_ntt_montgomery(simd_units: &mut [Self; SIMD_UNITS_IN_RING_ELEMENT]);
 

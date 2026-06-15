@@ -312,6 +312,50 @@ pub(crate) fn ntt_with_proof(simd_units: &mut [Coefficients; SIMD_UNITS_IN_RING_
     );
 }
 
+// Functional inverse-NTT surfacing (Track B), mirror of `ntt_with_proof`.
+// `invert_ntt_with_proof` carries the tight output bound (4_211_177) AND the
+// functional clause `output ≡ to_mont (Hacspec_ml_dsa.Ntt.intt input) mod q`
+// (in the ntt_poly_view flat view, wrapped in the opaque `invert_func_post`
+// atom).  Reuses the forward view bridge `lemma_ntt_view_portable` (same
+// 32×8 flatten) and `Spec.MLDSA.Math.to_mont` (byte-identical to — hence defeq
+// with — `Portable.Invntt.to_mont`, which the free fn's post uses;
+// `lemma_to_mont_eq` makes that bridge explicit for the intro).
+#[cfg_attr(hax, hax_lib::fstar::before(r#"
+let lemma_to_mont_eq (y: t_Array i32 (mk_usize 256))
+    : Lemma (Libcrux_ml_dsa.Simd.Portable.Invntt.to_mont y == Spec.MLDSA.Math.to_mont y)
+  = ()
+"#))]
+#[hax_lib::requires(fstar!(r#"
+    Spec.Utils.forall32 (fun (i: nat{i < 32}) ->
+        Spec.Utils.is_i32b_array_opaque (v ${specs::FIELD_MAX})
+        (Libcrux_ml_dsa.Simd.Traits.f_repr (Seq.index ${simd_units} i)))
+"#))]
+#[hax_lib::ensures(|_| fstar!(r#"
+    Spec.Utils.forall32 (fun (i: nat{i < 32}) ->
+        Spec.Utils.is_i32b_array_opaque 4211177
+        (Libcrux_ml_dsa.Simd.Traits.f_repr (Seq.index ${simd_units}_future i))) /\
+    Libcrux_ml_dsa.Simd.Traits.invert_func_post ${simd_units} ${simd_units}_future
+"#))]
+pub(crate) fn invert_ntt_with_proof(simd_units: &mut [Coefficients; SIMD_UNITS_IN_RING_ELEMENT]) {
+    #[cfg(hax)]
+    let _orig = simd_units.clone();
+    invntt::invert_ntt_montgomery(simd_units);
+    hax_lib::fstar!(
+        r#"reveal_opaque (`%Libcrux_ml_dsa.Simd.Portable.Ntt.is_i32b_polynomial)
+             (Libcrux_ml_dsa.Simd.Portable.Ntt.is_i32b_polynomial 4211177 ${simd_units});
+           lemma_ntt_view_portable ${_orig};
+           lemma_ntt_view_portable ${simd_units};
+           lemma_to_mont_eq (Hacspec_ml_dsa.Ntt.intt
+             (Hacspec_ml_dsa.Commute.Chunk.simd_units_to_array
+                (Libcrux_ml_dsa.Simd.Portable.Ntt.chunks_of_re ${_orig})));
+           Libcrux_ml_dsa.Simd.Traits.lemma_invert_func_post_intro ${_orig} ${simd_units}
+             (Hacspec_ml_dsa.Commute.Chunk.simd_units_to_array
+                (Libcrux_ml_dsa.Simd.Portable.Ntt.chunks_of_re ${_orig}))
+             (Hacspec_ml_dsa.Commute.Chunk.simd_units_to_array
+                (Libcrux_ml_dsa.Simd.Portable.Ntt.chunks_of_re ${simd_units}))"#
+    );
+}
+
 // 2026-06-15: `--z3rlimit 200 --split_queries always`.  TWO fixes are needed
 // together for the functional `ntt` post: (1) `--split_queries always` — the
 // monolithic impl_1 record query doesn't fit COLD (after re-extraction shifts
@@ -781,17 +825,11 @@ impl Operations for Coefficients {
     #[ensures(|_| fstar!(r#"
         Spec.Utils.forall32 (fun (i: nat{i < 32}) ->
             Spec.Utils.is_i32b_array_opaque 4211177
-            (Libcrux_ml_dsa.Simd.Traits.f_repr (Seq.index ${simd_units}_future i)))
+            (Libcrux_ml_dsa.Simd.Traits.f_repr (Seq.index ${simd_units}_future i))) /\
+        Libcrux_ml_dsa.Simd.Traits.invert_func_post ${simd_units} ${simd_units}_future
     "#))]
     fn invert_ntt_montgomery(simd_units: &mut [Coefficients; SIMD_UNITS_IN_RING_ELEMENT]) {
-        // Bridge the free fn's `is_i32b_polynomial 4211177` post to the trait post
-        // `forall32 ... is_i32b_array_opaque 4211177 (f_repr ...)`.  is_i32b_polynomial
-        // is opaque; reveal it, then f_repr c == c.f_values (defeq).  Mirror of `ntt`.
-        invntt::invert_ntt_montgomery(simd_units);
-        hax_lib::fstar!(
-            r#"reveal_opaque (`%Libcrux_ml_dsa.Simd.Portable.Ntt.is_i32b_polynomial)
-                 (Libcrux_ml_dsa.Simd.Portable.Ntt.is_i32b_polynomial 4211177 ${simd_units})"#
-        );
+        invert_ntt_with_proof(simd_units)
     }
 
     #[requires(fstar!(r#"

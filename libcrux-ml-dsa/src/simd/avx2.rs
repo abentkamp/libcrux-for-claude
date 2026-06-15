@@ -621,6 +621,47 @@ pub(crate) fn ntt_with_proof(simd_units: &mut AVX2RingElement) {
     );
 }
 
+// Functional inverse-NTT surfacing (Track B) for AVX2, mirror of the Portable
+// invert_ntt_with_proof.  Reuses lemma_ntt_view_avx2 (same flatten) and
+// Spec.MLDSA.Math.to_mont (defeq with Portable.Invntt.to_mont, which the free
+// AVX2 invert post uses via PI.to_mont; lemma_to_mont_eq_avx2 bridges them).
+#[cfg_attr(hax, hax_lib::fstar::before(r#"
+let lemma_to_mont_eq_avx2 (y: t_Array i32 (mk_usize 256))
+    : Lemma (Libcrux_ml_dsa.Simd.Portable.Invntt.to_mont y == Spec.MLDSA.Math.to_mont y)
+  = ()
+"#))]
+#[hax_lib::requires(fstar!(r#"
+    Spec.Utils.forall32 (fun (i: nat{i < 32}) ->
+        Spec.Utils.is_i32b_array_opaque (v ${specs::FIELD_MAX})
+        (Libcrux_ml_dsa.Simd.Traits.f_repr (Seq.index ${simd_units} i)))
+"#))]
+#[hax_lib::ensures(|_| fstar!(r#"
+    Spec.Utils.forall32 (fun (i: nat{i < 32}) ->
+        Spec.Utils.is_i32b_array_opaque 4211177
+        (Libcrux_ml_dsa.Simd.Traits.f_repr (Seq.index ${simd_units}_future i))) /\
+    Libcrux_ml_dsa.Simd.Traits.invert_func_post ${simd_units} ${simd_units}_future
+"#))]
+#[inline(always)]
+pub(crate) fn invert_ntt_with_proof(simd_units: &mut AVX2RingElement) {
+    #[cfg(hax)]
+    let _orig = simd_units.clone();
+    hax_lib::fstar!(
+        r#"lemma_freprs_to_poly_avx2 (v Libcrux_ml_dsa.Simd.Traits.Specs.v_FIELD_MAX) ${simd_units};
+        assert_norm (v Libcrux_ml_dsa.Simd.Traits.Specs.v_FIELD_MAX == 8380416)"#
+    );
+    invntt::invert_ntt_montgomery(simd_units);
+    hax_lib::fstar!(
+        r#"lemma_poly_avx2_to_freprs 4211177 ${simd_units};
+        lemma_ntt_view_avx2 ${_orig};
+        lemma_ntt_view_avx2 ${simd_units};
+        lemma_to_mont_eq_avx2 (Hacspec_ml_dsa.Ntt.intt
+          (Hacspec_ml_dsa.Commute.Chunk.simd_units_to_array (Avx2NttTheory.chunks_of_re_avx2 ${_orig})));
+        Libcrux_ml_dsa.Simd.Traits.lemma_invert_func_post_intro ${_orig} ${simd_units}
+          (Hacspec_ml_dsa.Commute.Chunk.simd_units_to_array (Avx2NttTheory.chunks_of_re_avx2 ${_orig}))
+          (Hacspec_ml_dsa.Commute.Chunk.simd_units_to_array (Avx2NttTheory.chunks_of_re_avx2 ${simd_units}))"#
+    );
+}
+
 /// Implementing the [`Operations`] for AVX2.
 // 2026-06-15: `--z3rlimit 400 --split_queries always`.  The functional `ntt`
 // post made the monolithic impl_1 record query saturate COLD at rlimit 400
@@ -1042,19 +1083,11 @@ impl Operations for AVX2SIMDUnit {
     #[ensures(|_| fstar!(r#"
         Spec.Utils.forall32 (fun (i: nat{i < 32}) ->
             Spec.Utils.is_i32b_array_opaque 4211177
-            (Libcrux_ml_dsa.Simd.Traits.f_repr (Seq.index ${simd_units}_future i)))
+            (Libcrux_ml_dsa.Simd.Traits.f_repr (Seq.index ${simd_units}_future i))) /\
+        Libcrux_ml_dsa.Simd.Traits.invert_func_post ${simd_units} ${simd_units}_future
     "#))]
     fn invert_ntt_montgomery(simd_units: &mut AVX2RingElement) {
-        // Bridge the trait's per-`f_repr` pre into the free fn's
-        // `is_i32b_poly_avx2 8380416` pre (FIELD_MAX = 8380416).
-        hax_lib::fstar!(
-            r#"lemma_freprs_to_poly_avx2 (v Libcrux_ml_dsa.Simd.Traits.Specs.v_FIELD_MAX) ${simd_units};
-            assert_norm (v Libcrux_ml_dsa.Simd.Traits.Specs.v_FIELD_MAX == 8380416)"#
-        );
-        invntt::invert_ntt_montgomery(simd_units);
-        // Bridge the free fn's tight `is_i32b_poly_avx2 4211177` post back to the
-        // trait's per-`f_repr` 4211177 post.
-        hax_lib::fstar!(r#"lemma_poly_avx2_to_freprs 4211177 ${simd_units}"#);
+        invert_ntt_with_proof(simd_units)
     }
 
     #[inline(always)]

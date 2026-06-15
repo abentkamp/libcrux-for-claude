@@ -491,3 +491,15 @@ let rejection_sample_coefficient_lemma (randomness:Seq.seq u8) (i:usize{v i < (S
 
 #pop-options
 
+(* Montgomery-domain lift of the inverse NTT output: to_mont x = mod_q(R*x),
+   R = 2^32 mod q = 4193792.  The inverse-NTT impl stays in the Montgomery
+   domain (mont_mul by 41978 = R*256^{-1}), so its output is the clean intt
+   times R.  Relocated here (a base spec module, below the SIMD trait) so the
+   `Operations::invert_ntt_montgomery` trait post can state functional
+   correctness `out ≡ to_mont (intt in) (mod q)`.  Byte-identical to the
+   def in `Libcrux_ml_dsa.Simd.Portable.Invntt` (so the two are defeq and the
+   free-fn post bridges to the trait post with no rewrite). *)
+let to_mont (p: t_Array i32 (mk_usize 256)) : t_Array i32 (mk_usize 256) =
+  Hacspec_ml_dsa.createi #i32 (mk_usize 256) #(usize -> i32)
+    (fun i -> Hacspec_ml_dsa.Arithmetic.mod_q (mk_i64 4193792 *! (cast (p.[i] <: i32) <: i64)))
+
