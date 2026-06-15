@@ -297,9 +297,13 @@ where
         state.absorb(&[customization_encoding]);
         state.absorb(&[customization]);
 
-        // Pad zeros
+        // Pad zeros.
+        // `buffer_len` is only ever used modulo `RATE` (to compute `n_zeros`),
+        // so we reduce `name.len()` modulo `RATE` here. This keeps the sum
+        // small enough to provably never overflow `usize` while leaving
+        // `buffer_len % RATE` unchanged.
         let buffer_len = 2
-            + name.len()
+            + name.len() % RATE
             + name_bits_encoding_len
             + customization_encoding_len
             + (customization.len() % RATE);
