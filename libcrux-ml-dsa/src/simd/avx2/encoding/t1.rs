@@ -1,7 +1,36 @@
 use libcrux_intrinsics::avx2::*;
 
+// Factor the pure-AVX2 bit-packing chain into a helper carrying the
+// register-bit post (mirrors `commitment::serialize_6`). Keeping the deep
+// bit-chain reasoning in its own (opaque) VC lets the main `serialize` VC
+// discharge only the store + copy_from_slice plumbing against this post,
+// instead of one combined query that saturates ("incomplete quantifiers").
+#[hax_lib::ensures(|result| fstar!(r#"
+      let open Spec.Intrinsics in
+      forall (i: nat {i < 80}).
+         (if i < 40 then result.(mk_int i) else result.(mk_int (128 + i - 40)))
+      == (${simd_unit}.(mk_int ((i / 10) * 32 + i % 10)))
+    "#
+    ))]
+#[hax_lib::fstar::options("--ifuel 0 --z3rlimit 380")]
+#[hax_lib::fstar::before(r#"[@@"opaque_to_smt"]"#)]
 #[inline(always)]
-#[hax_lib::fstar::verification_status(panic_free)]
+// This function is purely AVX2 operations, which makes the SMT proof with F* easy.
+fn serialize_helper(simd_unit: &Vec256) -> Vec256 {
+    let adjacent_2_combined =
+        mm256_sllv_epi32(*simd_unit, mm256_set_epi32(0, 22, 0, 22, 0, 22, 0, 22));
+    let adjacent_2_combined = mm256_srli_epi64::<22>(adjacent_2_combined);
+
+    let adjacent_4_combined =
+        mm256_permutevar8x32_epi32(adjacent_2_combined, mm256_set_epi32(0, 0, 6, 4, 0, 0, 2, 0));
+    let adjacent_4_combined = mm256_sllv_epi32(
+        adjacent_4_combined,
+        mm256_set_epi32(0, 12, 0, 12, 0, 12, 0, 12),
+    );
+    mm256_srli_epi64::<12>(adjacent_4_combined)
+}
+
+#[inline(always)]
 #[hax_lib::fstar::options("--z3rlimit 800")]
 #[hax_lib::fstar::before("open Spec.Intrinsics")]
 #[hax_lib::requires(out.len() == 10)]
@@ -17,17 +46,7 @@ pub(crate) fn serialize(simd_unit: &Vec256, out: &mut [u8]) {
 
     let mut serialized = [0u8; 24];
 
-    let adjacent_2_combined =
-        mm256_sllv_epi32(*simd_unit, mm256_set_epi32(0, 22, 0, 22, 0, 22, 0, 22));
-    let adjacent_2_combined = mm256_srli_epi64::<22>(adjacent_2_combined);
-
-    let adjacent_4_combined =
-        mm256_permutevar8x32_epi32(adjacent_2_combined, mm256_set_epi32(0, 0, 6, 4, 0, 0, 2, 0));
-    let adjacent_4_combined = mm256_sllv_epi32(
-        adjacent_4_combined,
-        mm256_set_epi32(0, 12, 0, 12, 0, 12, 0, 12),
-    );
-    let adjacent_4_combined = mm256_srli_epi64::<12>(adjacent_4_combined);
+    let adjacent_4_combined = serialize_helper(simd_unit);
 
     // We now have 40 bits starting at position 0 in the lower 128-bit lane, ...
     let lower_4 = mm256_castsi256_si128(adjacent_4_combined);
