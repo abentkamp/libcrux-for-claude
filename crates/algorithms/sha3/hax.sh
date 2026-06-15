@@ -17,6 +17,11 @@ function extract_all() {
         into -i "+**" \
         fstar --z3rlimit 80
     
+    # The `libcrux_sha3::portable` module must stay transparent (no F* interface):
+    # its `shaXXX`/`shakeXXX` entry points return `t_Slice u8`, and the top-level
+    # `Libcrux_sha3.hash` relies on seeing their bodies to re-establish that the
+    # result is a fixed-length `t_Array u8 v_LEN`. An interface would erase that to
+    # `t_Slice u8` with a trivial postcondition and the subtyping check fails.
     extract crates/algorithms/sha3 \
         into -i "+**" \
         -i "-**::avx2::**" \
@@ -25,7 +30,7 @@ function extract_all() {
         -i "-**::simd128::**" \
         -i "-**::simd256::**" \
         fstar --z3rlimit 80 \
-        --interfaces "+** -**::generic_keccak::constants::**"
+        --interfaces "+** -**::generic_keccak::constants::** -**::proof_utils::** -libcrux_sha3::portable::**"
 }
 
 function prove() {
