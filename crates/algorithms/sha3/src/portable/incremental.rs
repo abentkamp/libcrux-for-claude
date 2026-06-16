@@ -1,15 +1,16 @@
-use super::*;
 use generic_keccak::xof::KeccakXofState;
-
-#[cfg(hax)]
-use crate::proof_utils::keccak_xof_state_inv;
-
 // Bring the proof-only invariant trait into scope so its method can be
 // named in `CShake` contracts on the concrete `CShakeIncremental` type.
 #[cfg(hax)]
 use private::CShakeInv;
 
+use super::*;
+#[cfg(hax)]
+use crate::proof_utils::keccak_xof_state_inv;
+
+#[cfg(not(eurydice))]
 mod cshake;
+#[cfg(not(eurydice))]
 pub use cshake::{left_encode, left_encode_byte, right_encode};
 
 mod private {
@@ -20,13 +21,16 @@ mod private {
 
     impl Sealed for super::Shake128Xof {}
     impl Sealed for super::Shake256Xof {}
+    #[cfg(not(eurydice))]
     impl Sealed for super::CShake128 {}
+    #[cfg(not(eurydice))]
     impl Sealed for super::CShake256 {}
 
     /// Proof-only supertrait of [`super::CShake`] carrying the internal Keccak
     /// XOF state invariant as a ghost predicate. It is implemented generically
     /// for every `RATE`, so the generic `CShake` impl can unfold it, while
     /// `kmac` (generic over `CShake`) sees it abstractly. No runtime meaning.
+    #[cfg(not(eurydice))]
     #[hax_lib::attributes]
     pub trait CShakeInv {
         #[cfg(hax)]
@@ -36,6 +40,7 @@ mod private {
     }
 
     #[hax_lib::attributes]
+    #[cfg(not(eurydice))]
     impl<const RATE: usize> CShakeInv for super::CShakeIncremental<RATE> {
         #[cfg(hax)]
         #[hax_lib::requires(true)]
@@ -59,6 +64,7 @@ pub struct Shake256Xof {
 #[hax_lib::attributes]
 /// A trait for portable, incremental CSHAKE implementations
 // XXX: The names here have the `_cshake` suffix to work around an F* extraction name clash bug.
+#[cfg(not(eurydice))]
 pub trait CShake<const RATE: usize>: private::Sealed + private::CShakeInv {
     /// Create new absorb state
     #[requires(RATE == 136 || RATE == 168)]
@@ -129,6 +135,7 @@ impl Xof<168> for Shake128Xof {
 }
 
 #[hax_lib::attributes]
+#[cfg(not(eurydice))]
 impl Xof<168> for CShake128 {
     /// CShake128 new state
     #[hax_lib::ensures(|result| keccak_xof_state_inv(168, result.state.buf_len))]
@@ -198,6 +205,7 @@ impl Xof<136> for Shake256Xof {
 }
 
 #[hax_lib::attributes]
+#[cfg(not(eurydice))]
 impl Xof<136> for CShake256 {
     /// CShake256 new state
     #[hax_lib::ensures(|result| keccak_xof_state_inv(136, result.state.buf_len))]
@@ -233,7 +241,9 @@ impl Xof<136> for CShake256 {
 /// Create a new SHAKE-128 state object.
 #[inline(always)]
 pub fn shake128_init() -> KeccakState {
-    KeccakState::init()
+    KeccakState {
+        state: GenericState::<1, u64>::new(),
+    }
 }
 
 /// Absorb
@@ -314,6 +324,7 @@ pub fn shake256_squeeze_next_block(s: &mut KeccakState, out: &mut [u8]) {
 }
 
 #[hax_lib::attributes]
+#[cfg(not(eurydice))]
 impl<const RATE: usize> CShake<RATE> for CShakeIncremental<RATE>
 where
     CShakeIncremental<RATE>: private::Sealed,
@@ -379,11 +390,14 @@ where
 }
 
 /// A portable, incremental implementation of CSHAKE for a given absorption rate.
+#[cfg(not(eurydice))]
 pub struct CShakeIncremental<const RATE: usize> {
     pub(crate) state: KeccakXofState<1, RATE, u64>,
 }
 
 /// A portable, incremental implementation of CSHAKE-128.
+#[cfg(not(eurydice))]
 pub type CShake128 = CShakeIncremental<168>;
 /// A portable, incremental implementation of CSHAKE-256.
+#[cfg(not(eurydice))]
 pub type CShake256 = CShakeIncremental<136>;

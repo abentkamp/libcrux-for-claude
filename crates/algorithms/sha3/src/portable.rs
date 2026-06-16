@@ -1,24 +1,14 @@
-use crate::generic_keccak::{self, portable::keccak1};
+use generic_keccak::KeccakState as GenericState;
 use hax_lib;
-
 #[cfg(hax)]
 use hax_lib::int::*;
 
-use generic_keccak::KeccakState as GenericState;
+use crate::generic_keccak::{self, portable::keccak1};
 
 /// The Keccak state for the incremental API.
 #[derive(Clone, Copy)]
 pub struct KeccakState {
     state: GenericState<1, u64>,
-}
-
-impl KeccakState {
-    /// Initialize a fresh portable Keccak state.
-    pub fn init() -> Self {
-        KeccakState {
-            state: GenericState::<1, u64>::new(),
-        }
-    }
 }
 
 /// A portable SHA3 224 implementation.
