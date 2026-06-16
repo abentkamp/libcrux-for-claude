@@ -16,6 +16,7 @@ use libcrux_sha3::portable::incremental::{CShake128, CShake256};
 /// section 4.
 pub fn kmac_128<'a>(tag: &'a mut [u8], key: &[u8], data: &[u8], customization: &[u8]) -> &'a [u8] {
     // Assert that key is long enough, i.e. at least 128 bits
+    assert!(key.len() >= 16);
     compute_kmac::<168, CShake128>(tag, tag.len(), key, key.len(), data, customization)
 }
 
@@ -26,5 +27,6 @@ pub fn kmac_128<'a>(tag: &'a mut [u8], key: &[u8], data: &[u8], customization: &
 /// section 4.
 pub fn kmac_256<'a>(tag: &'a mut [u8], key: &[u8], data: &[u8], customization: &[u8]) -> &'a [u8] {
     // Assert that key is long enough, i.e. at least 256 bits
+    assert!(key.len() >= 32);
     compute_kmac::<136, CShake256>(tag, tag.len(), key, key.len(), data, customization)
 }
