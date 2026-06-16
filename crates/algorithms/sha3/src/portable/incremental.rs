@@ -4,7 +4,7 @@ use generic_keccak::xof::KeccakXofState;
 #[cfg(hax)]
 use crate::proof_utils::keccak_xof_state_inv;
 
-// Bring the proof-only invariant predicate into scope so its method can be
+// Bring the proof-only invariant trait into scope so its method can be
 // named in `CShake` contracts on the concrete `CShakeIncremental` type.
 #[cfg(hax)]
 use private::CShakeInv;
