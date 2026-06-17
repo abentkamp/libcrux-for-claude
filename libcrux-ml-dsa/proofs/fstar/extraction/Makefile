@@ -53,12 +53,18 @@ ENABLE_HINTS = --use_hints --record_hints
 include $(shell git rev-parse --show-toplevel)/fstar-helpers/Makefile.base
 
 # =====================================================================
-# Hand-written AVX2 forward-NTT commute theory (committed under
-# specs/ml-dsa/proofs/fstar/commute/, on the include path above).
-# Avx2NttTheory carries a .fsti, so consumers depend only on its
-# .fsti.checked — `make verify` would NOT verify its heavy .fst proof.
-# Force-gate both .fst modules here so CI re-checks them cold.
-# (Avx2NttCompose has no .fsti; it is pulled in transitively, but listing
-# it is explicit and harmless.)
+# Hand-written / shared modules that carry a .fsti, so consumers depend
+# only on their .fsti.checked — `make verify` would NOT verify the .fst
+# proof bodies. Force-gate the .fst modules here so CI re-checks them.
+#
+#  - Avx2NttTheory / Avx2NttCompose: committed AVX2 forward-NTT commute
+#    theory under specs/ml-dsa/proofs/fstar/commute/ (on the include path
+#    above). (Avx2NttCompose has no .fsti; listing it is explicit/harmless.)
+#  - Hacspec_ml_dsa.Commute.Chunk (commute/) and Spec.MLDSA.Math (../spec):
+#    shared per-lane commute + integer-spec libraries. Each gained a hand-
+#    written .fsti so closing an admit in their .fst body no longer reproves
+#    the heavy NTT consumers; their .fst proofs must be force-gated here.
 # =====================================================================
-verify: $(CACHE_DIR)/Avx2NttTheory.fst.checked $(CACHE_DIR)/Avx2NttCompose.fst.checked
+verify: $(CACHE_DIR)/Avx2NttTheory.fst.checked $(CACHE_DIR)/Avx2NttCompose.fst.checked \
+        $(CACHE_DIR)/Hacspec_ml_dsa.Commute.Chunk.fst.checked \
+        $(CACHE_DIR)/Spec.MLDSA.Math.fst.checked
