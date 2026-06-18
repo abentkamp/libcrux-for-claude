@@ -11,7 +11,7 @@ let xor_block_into_state (state: t_Array u64 (mk_usize 25)) (block: t_Slice u8) 
         rate <=. mk_usize 200 && (rate %! mk_usize 8 <: usize) =. mk_usize 0 &&
         (Core_models.Slice.impl__len #u8 block <: usize) >=. rate)
       (fun _ -> Prims.l_True) =
-  Hacspec_sha3.createi #u64
+  Core_models.Array.from_fn #u64
     (mk_usize 25)
     (fun i ->
         let i:usize = i in
@@ -60,7 +60,7 @@ let squeeze_state
         ((Core_models.Slice.impl__len #u8 (output <: t_Slice u8) <: usize) -! len <: usize))
       (fun _ -> Prims.l_True) =
   let (bytes: t_Array u8 (mk_usize 200)):t_Array u8 (mk_usize 200) =
-    Hacspec_sha3.createi #u8
+    Core_models.Array.from_fn #u8
       (mk_usize 200)
       (fun i ->
           let i:usize = i in
@@ -264,7 +264,7 @@ let squeeze (v_OUTPUT_LEN: usize) (state: t_Array u64 (mk_usize 25)) (rate: usiz
         rate >. mk_usize 0 && rate <=. mk_usize 200 && (rate %! mk_usize 8 <: usize) =. mk_usize 0 &&
         v_OUTPUT_LEN <. (Core_models.Num.impl_usize__MAX -! mk_usize 200 <: usize))
       (fun _ -> Prims.l_True) =
-  Hacspec_sha3.createi #u8
+  Core_models.Array.from_fn #u8
     v_OUTPUT_LEN
     (fun k ->
         let k:usize = k in

@@ -43,7 +43,7 @@ let v_RHO_OFFSETS: t_Array u32 (mk_usize 25) =
 ///   A′[x,y] = A[x,y] ⊕ D[x]
 let theta (state: t_Array u64 (mk_usize 25)) : t_Array u64 (mk_usize 25) =
   let (c: t_Array u64 (mk_usize 5)):t_Array u64 (mk_usize 5) =
-    Hacspec_sha3.createi #u64
+    Core_models.Array.from_fn #u64
       (mk_usize 5)
       (fun x ->
           let x:usize = x in
@@ -59,7 +59,7 @@ let theta (state: t_Array u64 (mk_usize 25)) : t_Array u64 (mk_usize 25) =
           u64)
   in
   let (d: t_Array u64 (mk_usize 5)):t_Array u64 (mk_usize 5) =
-    Hacspec_sha3.createi #u64
+    Core_models.Array.from_fn #u64
       (mk_usize 5)
       (fun x ->
           let x:usize = x in
@@ -75,7 +75,7 @@ let theta (state: t_Array u64 (mk_usize 25)) : t_Array u64 (mk_usize 25) =
           <:
           u64)
   in
-  Hacspec_sha3.createi #u64
+  Core_models.Array.from_fn #u64
     (mk_usize 25)
     (fun idx ->
         let idx:usize = idx in
@@ -84,7 +84,7 @@ let theta (state: t_Array u64 (mk_usize 25)) : t_Array u64 (mk_usize 25) =
 /// ρ step — FIPS 202, Algorithm 2.
 ///   A′[x,y] = rot(A[x,y], offset(x,y))
 let rho (state: t_Array u64 (mk_usize 25)) : t_Array u64 (mk_usize 25) =
-  Hacspec_sha3.createi #u64
+  Core_models.Array.from_fn #u64
     (mk_usize 25)
     (fun idx ->
         let idx:usize = idx in
@@ -95,7 +95,7 @@ let rho (state: t_Array u64 (mk_usize 25)) : t_Array u64 (mk_usize 25) =
 /// π step — FIPS 202, Algorithm 3.
 ///   A′[x,y] = A[(x + 3y) mod 5, x]
 let pi (state: t_Array u64 (mk_usize 25)) : t_Array u64 (mk_usize 25) =
-  Hacspec_sha3.createi #u64
+  Core_models.Array.from_fn #u64
     (mk_usize 25)
     (fun idx ->
         let idx:usize = idx in
@@ -106,7 +106,7 @@ let pi (state: t_Array u64 (mk_usize 25)) : t_Array u64 (mk_usize 25) =
 /// χ step — FIPS 202, Algorithm 4.
 ///   A′[x,y] = A[x,y] ⊕ (¬A[(x+1) mod 5, y] ∧ A[(x+2) mod 5, y])
 let chi (state: t_Array u64 (mk_usize 25)) : t_Array u64 (mk_usize 25) =
-  Hacspec_sha3.createi #u64
+  Core_models.Array.from_fn #u64
     (mk_usize 25)
     (fun idx ->
         let idx:usize = idx in
