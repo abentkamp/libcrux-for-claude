@@ -18,7 +18,7 @@ pub fn get(state: &State, x: usize, y: usize) -> u64 {
 }
 
 // =========================================================================
-// Constants — FIPS 202, Section 3.3 / Algorithm 5
+// Constants — FIPS 202, Section 3.2
 // =========================================================================
 
 /// Round constants `RC[ir]` for `ir = 0..23` — FIPS 202, Algorithm 5.
