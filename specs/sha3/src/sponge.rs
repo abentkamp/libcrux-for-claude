@@ -15,11 +15,14 @@ use hax_lib::int::*;
 /// Corresponds to the `S ⊕ (Pi || 0^c)` step of Algorithm 8.
 #[hax_lib::requires(rate <= 200 && rate % 8 == 0 && block.len() >= rate)]
 pub fn xor_block_into_state(state: State, block: &[u8], rate: usize) -> State {
+    debug_assert!(block.len() >= rate);
     array_from_fn(|i| {
         if i < rate / 8 {
-            // The slice is exactly 8 bytes (since `i < rate / 8` and
-            // `block.len() >= rate`), so `try_into::<[u8; 8]>` cannot fail.
-            state[i] ^ u64::from_le_bytes(block[8 * i..8 * i + 8].try_into().unwrap())
+            state[i]
+                ^ u64::from_le_bytes(block[8 * i..8 * i + 8].try_into().expect(
+                    "The slice is exactly 8 bytes (since `i < rate / 8` and \
+                    `block.len() >= rate`), so `try_into::<[u8; 8]>` cannot fail.",
+                ))
         } else {
             state[i]
         }
@@ -46,6 +49,7 @@ pub fn squeeze_state<const OUTPUT_LEN: usize>(
 /// Corresponds to one iteration of the absorb loop in Algorithm 8 (step 6).
 #[hax_lib::requires(rate <= 200 && rate % 8 == 0 && block.len() == rate)]
 pub fn absorb_block(state: State, block: &[u8], rate: usize) -> State {
+    debug_assert_eq!(block.len(), rate);
     let state = xor_block_into_state(state, block, rate);
     keccak_f(state)
 }

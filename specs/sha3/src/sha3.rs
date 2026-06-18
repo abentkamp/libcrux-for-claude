@@ -1,7 +1,7 @@
 /// SHA-3 and SHAKE functions — FIPS 202, Section 6.
 use crate::sponge::keccak;
 
-// Rate constants in bytes: rate = (1600 - 2*capacity) / 8
+// Rate constants in bytes: rate = (1600 - capacity) / 8
 const SHA3_224_RATE: usize = 144; // capacity = 448
 const SHA3_256_RATE: usize = 136; // capacity = 512
 const SHA3_384_RATE: usize = 104; // capacity = 768
