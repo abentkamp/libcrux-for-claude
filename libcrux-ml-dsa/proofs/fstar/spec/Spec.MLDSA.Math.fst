@@ -229,8 +229,81 @@ let lemma_mont_red_bound_256_field_max_times_41978 (value: i64)
    `specs/ml-dsa/proofs/fstar/commute/Hacspec_ml_dsa.Commute.Chunk.fst:656`
    which proves the same property for `mont_mul` (= `mont_red ∘ i32_mul`)
    with a fully-spelled-out proof.  *)
+#push-options "--z3rlimit 600 --fuel 0 --ifuel 1"
 let lemma_mont_red_mod_q (value: i64)
-    = admit ()
+    = Spec.Intrinsics.reveal_opaque_arithmetic_ops #i32_inttype;
+    Spec.Intrinsics.reveal_opaque_arithmetic_ops #i64_inttype;
+    Spec.Intrinsics.reveal_opaque_cast_ops #i32_inttype #i64_inttype;
+    reveal_opaque (`%mont_red) (mont_red value);
+    reveal_opaque (`%i32_mul) (i32_mul);
+    let val_int : int = v value in
+    // Step 1: hi = cast_mod (value >> 32) <: i32 = value / 2^32.
+    let val_shifted : i64 = value >>! mk_i32 32 in
+    assert (v val_shifted == val_int / pow2 32);
+    // Under |value| <= 8380416 * pow2 32, |val_int / pow2 32| <= 8380416 < pow2 31,
+    // so the cast_mod (@% pow2 32) is the identity.
+    assert_norm (8380416 < pow2 31);
+    Spec.Utils.lemma_range_at_percent (val_int / pow2 32) (pow2 32);
+    let hi : i32 = cast val_shifted <: i32 in
+    assert (v hi == val_int / pow2 32);
+    // Step 2: low = cast_mod value <: i32 = value @% 2^32.
+    let low : i32 = cast value <: i32 in
+    assert (v low == val_int @% pow2 32);
+    // Step 3: k = cast_mod (low * Q' as i64) <: i32 = (low * Q') @% 2^32.
+    let q'_i32 = mk_i32 58728449 in
+    Spec.Utils.lemma_range_at_percent (v low) (pow2 64);
+    Spec.Utils.lemma_range_at_percent 58728449 (pow2 64);
+    let lq_product : i64 = i32_mul low q'_i32 in
+    assert_norm (pow2 31 * 58728449 < pow2 63);
+    Spec.Utils.lemma_range_at_percent (v low * 58728449) (pow2 64);
+    assert (v lq_product == v low * 58728449);
+    let k : i32 = cast lq_product <: i32 in
+    assert (v k == (v low * 58728449) @% pow2 32);
+    // Step 4: c = cast_mod ((k * Q as i64) >> 32) = (k*q)/2^32.
+    let q_i32 = mk_i32 8380417 in
+    Spec.Utils.lemma_range_at_percent (v k) (pow2 64);
+    Spec.Utils.lemma_range_at_percent 8380417 (pow2 64);
+    let kq_product : i64 = i32_mul k q_i32 in
+    assert_norm (pow2 31 * 8380417 < pow2 63);
+    Spec.Utils.lemma_range_at_percent (v k * 8380417) (pow2 64);
+    assert (v kq_product == v k * 8380417);
+    let kq_shifted : i64 = kq_product >>! mk_i32 32 in
+    assert (v kq_shifted == (v k * 8380417) / pow2 32);
+    assert_norm (pow2 31 * 8380417 / pow2 32 < pow2 31);
+    assert_norm (- (pow2 31 * 8380417 / pow2 32) > - pow2 31);
+    Spec.Utils.lemma_range_at_percent ((v k * 8380417) / pow2 32) (pow2 32);
+    let c : i32 = cast kq_shifted <: i32 in
+    assert (v c == (v k * 8380417) / pow2 32);
+    // Step 5: result = sub_mod hi c.
+    assert_norm (8380416 + (pow2 31 * 8380417 / pow2 32) < pow2 31);
+    let result : i32 = hi -! c in
+    assert (v result == v hi - v c);
+    // === MOD-q PROOF (mirroring the sibling lemma_mont_mul_bound_and_mod_q
+    //     calc chain; prod -> v value since `value` is the direct mont_red input) ===
+    // Show: (k * q) % 2^32 == value % 2^32  (so value - k*q is divisible by 2^32).
+    assert_norm ((58728449 * 8380417) % pow2 32 == 1);
+    Spec.Utils.lemma_at_percent_mod (v low * 58728449) (pow2 32);
+    FStar.Math.Lemmas.lemma_mod_mul_distr_l (v low * 58728449) 8380417 (pow2 32);
+    FStar.Math.Lemmas.lemma_mod_mul_distr_l ((v low * 58728449) @% pow2 32) 8380417 (pow2 32);
+    Spec.Utils.lemma_at_percent_mod (v low * 58728449) (pow2 32);
+    // (v k * 8380417) % 2^32 == (v low * 58728449 * 8380417) % 2^32
+    //                        == (v low * 1) % 2^32  (using q'*q ≡ 1 mod 2^32)
+    //                        == v low % 2^32 == v value % 2^32
+    FStar.Math.Lemmas.lemma_mod_mul_distr_r (v low) (58728449 * 8380417) (pow2 32);
+    Spec.Utils.lemma_at_percent_mod val_int (pow2 32);
+    assert ((v k * 8380417) % pow2 32 == val_int % pow2 32);
+    // (value - k*q) % 2^32 == 0:
+    FStar.Math.Lemmas.lemma_mod_sub_distr val_int (v k * 8380417) (pow2 32);
+    assert ((val_int - v k * 8380417) % pow2 32 == 0);
+    FStar.Math.Lemmas.lemma_div_exact (val_int - v k * 8380417) (pow2 32);
+    // hi - c = value/2^32 - (k*q)/2^32 = (value - k*q)/2^32.
+    assert (v result == (val_int - v k * 8380417) / pow2 32);
+    // Final step: ((value - k*q)/2^32) % q == (value * 8265825) % q.
+    assert_norm ((pow2 32 * 8265825) % 8380417 == 1);
+    FStar.Math.Lemmas.lemma_mod_mul_distr_r ((val_int - v k * 8380417) / pow2 32) (pow2 32 * 8265825) 8380417;
+    FStar.Math.Lemmas.lemma_div_exact (val_int - v k * 8380417) (pow2 32);
+    FStar.Math.Lemmas.lemma_mod_sub (val_int * 8265825) 8380417 (v k * 8265825)
+#pop-options
 
 (* Two-arg Montgomery multiplication: thin non-opaque wrapper over
    `mont_red`.  Callers who need to inspect the arithmetic only need
