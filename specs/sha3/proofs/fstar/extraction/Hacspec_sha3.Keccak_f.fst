@@ -45,7 +45,6 @@ let theta (state: t_Array u64 (mk_usize 25)) : t_Array u64 (mk_usize 25) =
   let (c: t_Array u64 (mk_usize 5)):t_Array u64 (mk_usize 5) =
     Hacspec_sha3.createi #u64
       (mk_usize 5)
-      #(usize -> u64)
       (fun x ->
           let x:usize = x in
           ((((get state x (mk_usize 0) <: u64) ^. (get state x (mk_usize 1) <: u64) <: u64) ^.
@@ -62,7 +61,6 @@ let theta (state: t_Array u64 (mk_usize 25)) : t_Array u64 (mk_usize 25) =
   let (d: t_Array u64 (mk_usize 5)):t_Array u64 (mk_usize 5) =
     Hacspec_sha3.createi #u64
       (mk_usize 5)
-      #(usize -> u64)
       (fun x ->
           let x:usize = x in
           (c.[ (x +! mk_usize 4 <: usize) %! mk_usize 5 <: usize ] <: u64) ^.
@@ -79,7 +77,6 @@ let theta (state: t_Array u64 (mk_usize 25)) : t_Array u64 (mk_usize 25) =
   in
   Hacspec_sha3.createi #u64
     (mk_usize 25)
-    #(usize -> u64)
     (fun idx ->
         let idx:usize = idx in
         (state.[ idx ] <: u64) ^. (d.[ idx %! mk_usize 5 <: usize ] <: u64) <: u64)
@@ -89,7 +86,6 @@ let theta (state: t_Array u64 (mk_usize 25)) : t_Array u64 (mk_usize 25) =
 let rho (state: t_Array u64 (mk_usize 25)) : t_Array u64 (mk_usize 25) =
   Hacspec_sha3.createi #u64
     (mk_usize 25)
-    #(usize -> u64)
     (fun idx ->
         let idx:usize = idx in
         Core_models.Num.impl_u64__rotate_left (state.[ idx ] <: u64) (v_RHO_OFFSETS.[ idx ] <: u32)
@@ -101,7 +97,6 @@ let rho (state: t_Array u64 (mk_usize 25)) : t_Array u64 (mk_usize 25) =
 let pi (state: t_Array u64 (mk_usize 25)) : t_Array u64 (mk_usize 25) =
   Hacspec_sha3.createi #u64
     (mk_usize 25)
-    #(usize -> u64)
     (fun idx ->
         let idx:usize = idx in
         let y:usize = idx /! mk_usize 5 in
@@ -113,7 +108,6 @@ let pi (state: t_Array u64 (mk_usize 25)) : t_Array u64 (mk_usize 25) =
 let chi (state: t_Array u64 (mk_usize 25)) : t_Array u64 (mk_usize 25) =
   Hacspec_sha3.createi #u64
     (mk_usize 25)
-    #(usize -> u64)
     (fun idx ->
         let idx:usize = idx in
         let y:usize = idx /! mk_usize 5 in
