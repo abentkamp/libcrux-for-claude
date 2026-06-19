@@ -959,7 +959,6 @@ impl Operations for AVX2SIMDUnit {
           v (Seq.index ${out}_future i) >= 0 /\
           v (Seq.index ${out}_future i) < 8380417)"#))]
     fn rejection_sample_less_than_field_modulus(randomness: &[u8], out: &mut [i32]) -> usize {
-        hax_lib::fstar!("admit ()");
         rejection_sample::less_than_field_modulus::sample(randomness, out)
     }
 
@@ -973,7 +972,6 @@ impl Operations for AVX2SIMDUnit {
         (forall (i:nat{i < Seq.length ${out}_future}). i < v $result ==>
           v (Seq.index ${out}_future i) >= -2 /\ v (Seq.index ${out}_future i) <= 2)"#))]
     fn rejection_sample_less_than_eta_equals_2(randomness: &[u8], out: &mut [i32]) -> usize {
-        hax_lib::fstar!("admit ()");
         rejection_sample::less_than_eta::sample::<2>(randomness, out)
     }
 
@@ -987,7 +985,6 @@ impl Operations for AVX2SIMDUnit {
         (forall (i:nat{i < Seq.length ${out}_future}). i < v $result ==>
           v (Seq.index ${out}_future i) >= -4 /\ v (Seq.index ${out}_future i) <= 4)"#))]
     fn rejection_sample_less_than_eta_equals_4(randomness: &[u8], out: &mut [i32]) -> usize {
-        hax_lib::fstar!("admit ()");
         rejection_sample::less_than_eta::sample::<4>(randomness, out)
     }
 
