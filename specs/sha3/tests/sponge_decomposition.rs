@@ -29,13 +29,25 @@ fn keccak_equals_squeeze_of_absorb() {
     check::<32>(136, 0x06, short);
     check::<32>(136, 0x06, &long);
     // SHA3-384: rate=104, delim=0x06, out=48
+    check::<48>(104, 0x06, &empty);
     check::<48>(104, 0x06, short);
+    check::<48>(104, 0x06, &long);
     // SHA3-512: rate=72, delim=0x06, out=64
+    check::<64>(72, 0x06, &empty);
     check::<64>(72, 0x06, short);
+    check::<64>(72, 0x06, &long);
     // SHAKE128: rate=168, delim=0x1f — short and long output exercise the squeeze loop.
+    check::<16>(168, 0x1f, &empty);
     check::<16>(168, 0x1f, short);
+    check::<16>(168, 0x1f, &long);
+    check::<200>(168, 0x1f, &empty);
     check::<200>(168, 0x1f, short);
+    check::<200>(168, 0x1f, &long);
     // SHAKE256: rate=136, delim=0x1f.
+    check::<64>(136, 0x1f, &empty);
     check::<64>(136, 0x1f, short);
+    check::<64>(136, 0x1f, short);
+    check::<300>(136, 0x1f, &empty);
     check::<300>(136, 0x1f, short);
+    check::<300>(136, 0x1f, &long);
 }

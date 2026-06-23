@@ -7,6 +7,7 @@ mod sha3;
 pub mod sponge;
 
 /// Utility function to create an array of size `N` by applying a function `f` to each index.
+/// This is needed to inject our custom F* implementation below.
 #[hax_lib::fstar::replace(
     r#"
 let createi
@@ -18,11 +19,13 @@ let createi
     = Rust_primitives.Arrays.createi v_N f
 "#
 )]
-#[cfg(not(hax_backend_lean))] // https://github.com/AeneasVerif/aeneas/issues/924
+#[cfg(not(hax_backend_lean))]
 pub(crate) fn createi<T, const N: usize, F: Fn(usize) -> T>(f: F) -> [T; N] {
     core::array::from_fn(f)
 }
 
+// For Lean extraction, we need to use this alternative function taking `FnMut` instead of `Fn`.
+// This is due to an Aeneas bug: https://github.com/AeneasVerif/aeneas/issues/924
 #[cfg(hax_backend_lean)]
 pub(crate) fn createi<T, const N: usize, F: FnMut(usize) -> T>(f: F) -> [T; N] {
     core::array::from_fn(f)
