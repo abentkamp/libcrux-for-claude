@@ -152,11 +152,7 @@ pub fn byte_encode<const D32: usize, const D256: usize>(p: Polynomial, d: usize)
 /// hoisted to dodge Aeneas issue
 /// https://github.com/AeneasVerif/aeneas/issues/924.
 #[allow(non_upper_case_globals)]
-fn bitvector_to_bounded_ints_at<const Nd: usize>(
-    input: &BitVector<Nd>,
-    d: usize,
-    i: usize,
-) -> u16 {
+fn bitvector_to_bounded_ints_at<const Nd: usize>(input: &BitVector<Nd>, d: usize, i: usize) -> u16 {
     let mut coefficient: u16 = 0;
     for j in 0..d {
         // Loop invariant: coefficient holds the value assembled
@@ -222,8 +218,7 @@ pub fn serialize_secret_key_into<const RANK: usize>(vector: &Vector<RANK>, out: 
     for i in 0..RANK {
         hax_lib::loop_invariant!(|_i: usize| out.len() == RANK * BYTES_PER_RING_ELEMENT);
         let encoded = byte_encode::<{ 32 * 12 }, { 256 * 12 }>(vector[i], 12);
-        out[i * BYTES_PER_RING_ELEMENT..(i + 1) * BYTES_PER_RING_ELEMENT]
-            .copy_from_slice(&encoded);
+        out[i * BYTES_PER_RING_ELEMENT..(i + 1) * BYTES_PER_RING_ELEMENT].copy_from_slice(&encoded);
     }
 }
 
@@ -441,7 +436,6 @@ pub fn serialize_public_key<const RANK: usize, const EK_SIZE: usize>(
 ) -> [u8; EK_SIZE] {
     createi(|k| serialize_public_key_at::<RANK>(t_as_ntt, seed_for_A, k))
 }
-
 
 #[cfg(test)]
 mod tests {

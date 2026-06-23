@@ -187,18 +187,20 @@ macro_rules! cross_spec_tests {
                         spec::generate_keypair::<$k, $ek, $dk, $dk_pke>(&$params, randomness)
                             .unwrap_or_else(|_| {
                                 panic!(
-                                    concat!(stringify!($mod_name), " spec keygen failed for seed idx {}"),
+                                    concat!(
+                                        stringify!($mod_name),
+                                        " spec keygen failed for seed idx {}"
+                                    ),
                                     i
                                 )
                             });
                     let (spec_ss, spec_ct) =
                         spec::encapsulate::<$k, $ek, $u, $v, $ct>(&$params, &spec_ek, &encaps_rand)
                             .expect("spec encaps failed");
-                    let spec_ss_d =
-                        spec::decapsulate::<$k, $ek, $dk, $dk_pke, $u, $v, $ct, $j>(
-                            &$params, &spec_dk, &spec_ct,
-                        )
-                        .expect("spec decaps failed");
+                    let spec_ss_d = spec::decapsulate::<$k, $ek, $dk, $dk_pke, $u, $v, $ct, $j>(
+                        &$params, &spec_dk, &spec_ct,
+                    )
+                    .expect("spec decaps failed");
 
                     let kp = impl_mod::generate_key_pair(*randomness);
                     let (impl_ct, impl_ss_e) = impl_mod::encapsulate(kp.public_key(), encaps_rand);
@@ -207,7 +209,11 @@ macro_rules! cross_spec_tests {
                     assert_eq!(impl_ct.as_ref(), &spec_ct[..], "ct (seed idx={})", i);
                     assert_eq!(&impl_ss_e[..], &spec_ss[..], "encaps ss");
                     assert_eq!(&impl_ss_d[..], &spec_ss_d[..], "decaps ss");
-                    assert_eq!(&impl_ss_e[..], &impl_ss_d[..], "impl encaps/decaps ss differ");
+                    assert_eq!(
+                        &impl_ss_e[..],
+                        &impl_ss_d[..],
+                        "impl encaps/decaps ss differ"
+                    );
                 }
             }
 
@@ -232,11 +238,12 @@ macro_rules! cross_spec_tests {
                 let mut tampered_ct: [u8; $ct] = spec_ct;
                 tampered_ct[7] ^= 0xA5;
 
-                let spec_ss_rej =
-                    spec::decapsulate::<$k, $ek, $dk, $dk_pke, $u, $v, $ct, $j>(
-                        &$params, &spec_dk, &tampered_ct,
-                    )
-                    .expect("spec decaps (rejection branch) failed");
+                let spec_ss_rej = spec::decapsulate::<$k, $ek, $dk, $dk_pke, $u, $v, $ct, $j>(
+                    &$params,
+                    &spec_dk,
+                    &tampered_ct,
+                )
+                .expect("spec decaps (rejection branch) failed");
 
                 let impl_tampered_ct = tampered_ct.into();
                 let impl_ss_rej = impl_mod::decapsulate(kp.private_key(), &impl_tampered_ct);
